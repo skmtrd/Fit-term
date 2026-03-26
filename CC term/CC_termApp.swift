@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct CC_termApp: App {
+    @State private var sshService = SSHService()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(sshService)
         }
     }
 }
