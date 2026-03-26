@@ -8,14 +8,15 @@
 import Foundation
 import Citadel
 import NIOCore
+import NIOSSH
 
 @Observable
-final class SSHService: @unchecked Sendable {
+final class SSHService {
 
-    // MARK: - State (read from UI on MainActor)
+    // MARK: - State
 
-    @MainActor var connectionState: ConnectionState = .disconnected
-    @MainActor var lastError: String?
+    var connectionState: ConnectionState = .disconnected
+    var lastError: String?
 
     enum ConnectionState: Sendable {
         case disconnected
@@ -26,15 +27,19 @@ final class SSHService: @unchecked Sendable {
 
     // MARK: - Private
 
-    nonisolated(unsafe) private var client: SSHClient?
+    private var client: SSHClient?
+    private var shellInputContinuation: AsyncStream<ShellInput>.Continuation?
+
+    private enum ShellInput: Sendable {
+        case data(Data)
+        case resize(cols: Int, rows: Int)
+    }
 
     // MARK: - Connection
 
-    nonisolated func connect(config: SSHConnectionConfig) async throws {
-        await MainActor.run {
-            self.connectionState = .connecting
-            self.lastError = nil
-        }
+    func connect(config: SSHConnectionConfig) async throws {
+        connectionState = .connecting
+        lastError = nil
 
         do {
             let authMethod: SSHAuthenticationMethod
@@ -52,53 +57,100 @@ final class SSHService: @unchecked Sendable {
             )
 
             self.client = sshClient
-
-            await MainActor.run {
-                self.connectionState = .connected
-            }
-
-            sshClient.onDisconnect { [weak self] in
-                guard let self else { return }
-                Task { @MainActor in
-                    self.connectionState = .disconnected
-                    self.client = nil
-                }
-            }
+            connectionState = .connected
         } catch {
             let message = Self.userFriendlyMessage(for: error)
-            await MainActor.run {
-                self.connectionState = .error(message)
-                self.lastError = message
-            }
+            connectionState = .error(message)
+            lastError = message
             throw error
         }
     }
 
-    nonisolated func disconnect() async {
-        if let client = self.client {
+    func disconnect() async {
+        shellInputContinuation?.finish()
+        shellInputContinuation = nil
+        if let client {
             try? await client.close()
         }
         self.client = nil
-        await MainActor.run {
-            self.connectionState = .disconnected
-        }
+        connectionState = .disconnected
     }
 
-    // MARK: - Command Execution
+    // MARK: - Interactive Shell
 
-    nonisolated func executeCommand(_ command: String) async throws -> String {
+    func startShell(
+        cols: Int,
+        rows: Int,
+        onOutput: @escaping @Sendable (Data) -> Void
+    ) async throws {
         guard let client else {
             throw SSHServiceError.notConnected
         }
 
-        let buffer = try await client.executeCommand(command)
-        let output = String(buffer: buffer)
-        return output
+        let (inputStream, inputContinuation) = AsyncStream.makeStream(of: ShellInput.self)
+        self.shellInputContinuation = inputContinuation
+
+        let ptyRequest = SSHChannelRequestEvent.PseudoTerminalRequest(
+            wantReply: true,
+            term: "xterm-256color",
+            terminalCharacterWidth: cols,
+            terminalRowHeight: rows,
+            terminalPixelWidth: 0,
+            terminalPixelHeight: 0,
+            terminalModes: .init([:])
+        )
+
+        try await client.withPTY(ptyRequest) { inbound, outbound in
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    for try await output in inbound {
+                        switch output {
+                        case .stdout(let buffer):
+                            onOutput(Data(buffer.readableBytesView))
+                        case .stderr(let buffer):
+                            onOutput(Data(buffer.readableBytesView))
+                        }
+                    }
+                }
+
+                group.addTask {
+                    for await input in inputStream {
+                        switch input {
+                        case .data(let data):
+                            var buf = ByteBuffer()
+                            buf.writeBytes(data)
+                            try await outbound.write(buf)
+                        case .resize(let cols, let rows):
+                            try await outbound.changeSize(
+                                cols: cols,
+                                rows: rows,
+                                pixelWidth: 0,
+                                pixelHeight: 0
+                            )
+                        }
+                    }
+                }
+
+                try await group.next()
+                group.cancelAll()
+            }
+        }
+
+        self.shellInputContinuation = nil
+        connectionState = .disconnected
+    }
+
+    func sendToShell(_ data: Data) {
+        shellInputContinuation?.yield(.data(data))
+    }
+
+    func resizeShell(cols: Int, rows: Int) {
+        shellInputContinuation?.yield(.resize(cols: cols, rows: rows))
     }
 
     // MARK: - Error Mapping
 
-    private nonisolated static func userFriendlyMessage(for error: Error) -> String {
+    private static func userFriendlyMessage(for error: Error) -> String {
         let description = String(describing: error)
 
         if description.contains("authenticationFailed") || description.contains("allAuthenticationOptionsFailed") {

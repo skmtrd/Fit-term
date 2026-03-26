@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		FDF3B3072F74D235002E1A58 /* Citadel in Frameworks */ = {isa = PBXBuildFile; productRef = FDF3B3062F74D235002E1A58 /* Citadel */; };
+		FDF3B30E2F74D873002E1A58 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = FDF3B30D2F74D873002E1A58 /* SwiftTerm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FDF3B30E2F74D873002E1A58 /* SwiftTerm in Frameworks */,
 				FDF3B3072F74D235002E1A58 /* Citadel in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -71,6 +73,7 @@
 			name = "CC term";
 			packageProductDependencies = (
 				FDF3B3062F74D235002E1A58 /* Citadel */,
+				FDF3B30D2F74D873002E1A58 /* SwiftTerm */,
 			);
 			productName = "CC term";
 			productReference = FDF3B2E92F74CE37002E1A58 /* CC term.app */;
@@ -102,6 +105,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				FDF3B3052F74D235002E1A58 /* XCRemoteSwiftPackageReference "Citadel" */,
+				FDF3B30C2F74D873002E1A58 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = FDF3B2EA2F74CE37002E1A58 /* Products */;
@@ -347,6 +351,14 @@
 				minimumVersion = 0.12.0;
 			};
 		};
+		FDF3B30C2F74D873002E1A58 /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.5.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -354,6 +366,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = FDF3B3052F74D235002E1A58 /* XCRemoteSwiftPackageReference "Citadel" */;
 			productName = Citadel;
+		};
+		FDF3B30D2F74D873002E1A58 /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FDF3B30C2F74D873002E1A58 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
+			productName = SwiftTerm;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

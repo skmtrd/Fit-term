@@ -6,13 +6,17 @@
 //
 
 import Foundation
+@preconcurrency import SwiftTerm
 
 @Observable @MainActor
 final class TerminalViewModel {
     let sshService: SSHService
 
-    var commandInput: String = ""
-    var outputLines: [OutputLine] = []
+    private(set) weak var terminalView: TerminalView?
+    var title: String = "Terminal"
+
+    private var shellTask: Task<Void, Never>?
+    private var shellStarted = false
 
     var isConnected: Bool {
         if case .connected = sshService.connectionState { return true }
@@ -24,67 +28,60 @@ final class TerminalViewModel {
         return false
     }
 
-    struct OutputLine: Identifiable {
-        let id = UUID()
-        let text: String
-        let type: LineType
-    }
-
-    enum LineType {
-        case command
-        case stdout
-        case stderr
-        case system
-    }
-
     init(sshService: SSHService) {
         self.sshService = sshService
     }
 
     func connect(config: SSHConnectionConfig) async {
-        appendSystem("接続中... \(config.displayName)")
+        title = config.displayName
         do {
             try await sshService.connect(config: config)
-            appendSystem("接続しました。")
         } catch {
-            appendSystem("接続失敗: \(sshService.lastError ?? error.localizedDescription)")
+            // Error state is managed by sshService
+        }
+    }
+
+    func attachTerminalView(_ tv: TerminalView) {
+        self.terminalView = tv
+        // Don't start shell yet — wait for sizeChanged with actual dimensions
+    }
+
+    func resizeShell(cols: Int, rows: Int) {
+        guard cols > 0, rows > 0 else { return }
+
+        if !shellStarted {
+            shellStarted = true
+            startShell(cols: cols, rows: rows)
+        } else {
+            sshService.resizeShell(cols: cols, rows: rows)
+        }
+    }
+
+    private func startShell(cols: Int, rows: Int) {
+        guard let tv = terminalView else { return }
+
+        shellTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await sshService.startShell(cols: cols, rows: rows) { [weak tv] data in
+                    let bytes = [UInt8](data)
+                    DispatchQueue.main.async {
+                        tv?.feed(byteArray: ArraySlice(bytes))
+                    }
+                }
+            } catch {
+                // Shell ended with error
+            }
         }
     }
 
     func disconnect() async {
+        shellTask?.cancel()
+        shellTask = nil
         await sshService.disconnect()
-        appendSystem("切断しました。")
     }
 
-    func sendCommand() async {
-        let command = commandInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !command.isEmpty else { return }
-
-        outputLines.append(OutputLine(text: "$ \(command)", type: .command))
-        commandInput = ""
-
-        do {
-            let result = try await sshService.executeCommand(command)
-            let stripped = Self.stripANSI(result)
-            if !stripped.isEmpty {
-                for line in stripped.components(separatedBy: "\n") {
-                    outputLines.append(OutputLine(text: line, type: .stdout))
-                }
-            }
-        } catch {
-            outputLines.append(OutputLine(text: error.localizedDescription, type: .stderr))
-        }
-    }
-
-    private func appendSystem(_ text: String) {
-        outputLines.append(OutputLine(text: text, type: .system))
-    }
-
-    private static func stripANSI(_ string: String) -> String {
-        string.replacingOccurrences(
-            of: "\\x1B\\[[0-9;]*[a-zA-Z]",
-            with: "",
-            options: .regularExpression
-        )
+    func sendToShell(_ data: Data) {
+        sshService.sendToShell(data)
     }
 }

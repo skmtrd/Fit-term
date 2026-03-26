@@ -10,9 +10,9 @@ import SwiftUI
 struct ConnectionFormView: View {
     @Environment(SSHService.self) private var sshService
 
-    @State private var host: String = ""
+    @State private var host: String = "192.168.0.78"
     @State private var port: String = "22"
-    @State private var username: String = ""
+    @State private var username: String = "skmtrd"
     @State private var password: String = ""
     @State private var isConnecting = false
     @State private var navigateToTerminal = false
@@ -76,7 +76,7 @@ struct ConnectionFormView: View {
         .navigationTitle("SSH 接続")
         .navigationDestination(isPresented: $navigateToTerminal) {
             if let viewModel {
-                TerminalView(viewModel: viewModel)
+                TerminalScreen(viewModel: viewModel)
             }
         }
     }
