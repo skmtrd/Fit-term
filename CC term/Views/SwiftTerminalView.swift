@@ -29,11 +29,12 @@ struct SwiftTerminalView: UIViewRepresentable {
         if let settings {
             tv.font = settings.uiFont
             tv.nativeBackgroundColor = settings.uiBackgroundColor
+            tv.nativeForegroundColor = settings.uiForegroundColor
         } else {
             tv.font = UIFont.monospacedSystemFont(ofSize: 14, weight: .regular)
             tv.nativeBackgroundColor = .black
+            tv.nativeForegroundColor = .white
         }
-        tv.nativeForegroundColor = .white
     }
 
     func makeCoordinator() -> Coordinator {

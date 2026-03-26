@@ -17,6 +17,10 @@ struct SessionTabBar: View {
         settingsList.first?.backgroundColor ?? .black
     }
 
+    private var terminalFgColor: Color {
+        settingsList.first?.foregroundColor ?? .white
+    }
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 0) {
@@ -25,6 +29,7 @@ struct SessionTabBar: View {
                         session: session,
                         isActive: session.id == sessionManager.activeSessionId,
                         activeColor: terminalBgColor,
+                        activeFgColor: terminalFgColor,
                         onTap: { sessionManager.switchTo(session) },
                         onClose: { sessionManager.removeSession(session) }
                     )
@@ -51,6 +56,7 @@ private struct TabItem: View {
     let session: Session
     let isActive: Bool
     let activeColor: Color
+    let activeFgColor: Color
     let onTap: () -> Void
     let onClose: () -> Void
 
@@ -66,7 +72,7 @@ private struct TabItem: View {
             Text(session.displayName)
                 .font(.caption)
                 .lineLimit(1)
-                .foregroundStyle(isActive ? .white : .primary)
+                .foregroundStyle(isActive ? activeFgColor : .primary)
 
             Button {
                 if session.isConnected {
