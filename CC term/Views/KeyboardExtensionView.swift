@@ -20,10 +20,8 @@ struct KeyboardExtensionView: View {
 
     var body: some View {
         if let layout, !layout.buttons.isEmpty {
-            let gridRows = layout.rows
-            let gridCols = layout.columns
-
             GeometryReader { geo in
+                let gridCols = layout.columns
                 let cellSize = geo.size.width / CGFloat(gridCols)
 
                 ZStack(alignment: .topLeading) {
@@ -42,15 +40,8 @@ struct KeyboardExtensionView: View {
                     }
                 }
             }
-            .frame(height: CGFloat(gridRows) * cellSizeEstimate)
             .background(Color(.systemGray6))
         }
-    }
-
-    private var cellSizeEstimate: CGFloat {
-        let screenWidth = UIScreen.main.bounds.width
-        let gridCols = layouts.first?.columns ?? 4
-        return screenWidth / CGFloat(gridCols + 1)
     }
 
     private func sendAction(_ button: KeyboardButton) {

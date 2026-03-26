@@ -15,10 +15,12 @@ struct LayoutEditorView: View {
     @State private var editingButton: KeyboardButton?
     @State private var addingAt: (row: Int, col: Int)?
 
-    private var editorCellSize: CGFloat {
-        let cols = layouts.first?.columns ?? 4
-        let availableWidth = UIScreen.main.bounds.width - 32
-        return availableWidth / CGFloat(cols)
+    private var editorColumns: Int {
+        layouts.first?.columns ?? 4
+    }
+
+    private var editorRows: Int {
+        layouts.first?.rows ?? 2
     }
 
     private var layout: KeyboardLayout {
@@ -101,7 +103,7 @@ struct LayoutEditorView: View {
                 }
                 .frame(height: cellSize * CGFloat(layout.rows))
             }
-            .frame(height: editorCellSize * CGFloat(layout.rows))
+            .aspectRatio(CGFloat(editorColumns) / CGFloat(editorRows), contentMode: .fit)
             .padding(.horizontal)
 
             Spacer()

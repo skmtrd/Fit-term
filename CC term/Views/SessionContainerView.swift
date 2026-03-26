@@ -22,15 +22,12 @@ struct SessionContainerView: View {
     @State private var passwordForProfile: ConnectionProfile?
     @State private var password: String = ""
 
-    /// セルサイズ（正方形）= 画面幅 / (列数 + 1)
-    private var cellSize: CGFloat {
-        let gridCols = layouts.first?.columns ?? 4
-        return UIScreen.main.bounds.width / CGFloat(gridCols + 1)
-    }
+    private var gridCols: Int { layouts.first?.columns ?? 4 }
+    private var gridRows: Int { layouts.first?.rows ?? 2 }
 
-    private var keyboardAreaHeight: CGFloat {
-        let gridRows = layouts.first?.rows ?? 2
-        return cellSize * CGFloat(gridRows)
+    /// キーボードエリアの縦横比（戻るボタン1列分 + グリッド列数 : 行数）
+    private var keyboardAspectRatio: CGFloat {
+        CGFloat(gridCols + 1) / CGFloat(gridRows)
     }
 
     var body: some View {
@@ -106,8 +103,7 @@ struct SessionContainerView: View {
 
                     // キーボード拡張エリア + 戻るボタン
                     GeometryReader { geo in
-                        let gridCols = layouts.first?.columns ?? 4
-                        let totalUnits = CGFloat(gridCols) + 1 // +1 for back button
+                        let totalUnits = CGFloat(gridCols + 1)
                         let unitWidth = geo.size.width / totalUnits
                         let backWidth = unitWidth
 
@@ -131,9 +127,9 @@ struct SessionContainerView: View {
                                 toggleKeyboard: {
                                     if let tv = session.viewModel.terminalView {
                                         if tv.isFirstResponder {
-                                            tv.resignFirstResponder()
+                                            _ = tv.resignFirstResponder()
                                         } else {
-                                            tv.becomeFirstResponder()
+                                            _ = tv.becomeFirstResponder()
                                         }
                                     }
                                 },
@@ -147,7 +143,7 @@ struct SessionContainerView: View {
                             .frame(width: geo.size.width - backWidth)
                         }
                     }
-                    .frame(height: keyboardAreaHeight)
+                    .aspectRatio(keyboardAspectRatio, contentMode: .fit)
                     .background(Color(.systemGray6))
                 }
             } else {
@@ -176,7 +172,7 @@ struct SessionContainerView: View {
             SecureField("パスワード", text: $password)
             Button("接続") {
                 if let profile = passwordForProfile {
-                    sessionManager.addSession(profile: profile, password: password)
+                    _ = sessionManager.addSession(profile: profile, password: password)
                     passwordForProfile = nil
                     password = ""
                 }
@@ -194,7 +190,7 @@ struct SessionContainerView: View {
 
     private func connectProfile(_ profile: ConnectionProfile) {
         if let saved = KeychainHelper.load(forKey: profile.keychainPasswordKey) {
-            sessionManager.addSession(profile: profile, password: saved)
+            _ = sessionManager.addSession(profile: profile, password: saved)
         } else {
             passwordForProfile = profile
         }

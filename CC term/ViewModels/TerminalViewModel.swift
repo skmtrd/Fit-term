@@ -80,9 +80,6 @@ final class TerminalViewModel {
                 try? await Task.sleep(for: .milliseconds(100))
             }
 
-            // 接続完了後に initialCommand を取得（connect() で設定済み）
-            let cmdToRun = initialCommand
-
             do {
                 try await sshService.startShell(cols: cols, rows: rows) { [weak self] data in
                     let bytes = [UInt8](data)
@@ -125,7 +122,7 @@ final class TerminalViewModel {
     }
 
     func focusTerminal() {
-        terminalView?.becomeFirstResponder()
+        _ = terminalView?.becomeFirstResponder()
         refreshDisplay()
     }
 
