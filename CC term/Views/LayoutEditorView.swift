@@ -14,12 +14,12 @@ struct LayoutEditorView: View {
 
     @State private var editingButton: KeyboardButton?
     @State private var addingAt: (row: Int, col: Int)?
-    @State private var movingButton: KeyboardButton?
+    @State private var draggingButtonId: UUID?
+    @State private var dragOffset: CGSize = .zero
 
-    /// エディタ用セルサイズ（パディング込み）
     private var editorCellSize: CGFloat {
         let cols = layouts.first?.columns ?? 4
-        let availableWidth = UIScreen.main.bounds.width - 32 // padding分
+        let availableWidth = UIScreen.main.bounds.width - 32
         return availableWidth / CGFloat(cols)
     }
 
@@ -32,11 +32,8 @@ struct LayoutEditorView: View {
         return newLayout
     }
 
-    private var isMoving: Bool { movingButton != nil }
-
     var body: some View {
         VStack(spacing: 16) {
-            // グリッドサイズ調整
             Section {
                 HStack {
                     Text("列数: \(layout.columns)")
@@ -56,47 +53,58 @@ struct LayoutEditorView: View {
                 .padding(.horizontal)
             }
 
-            // 操作ヒント
-            if isMoving {
-                HStack {
-                    Text("移動先をタップ（ボタン同士でスワップ）")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                    Spacer()
-                    Button("キャンセル") {
-                        movingButton = nil
-                    }
-                    .font(.caption)
-                }
-                .padding(.horizontal)
-            } else {
-                Text("タップで編集 / 長押しで移動モード")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            Text("タップで編集 / ドラッグで移動")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-            // グリッドプレビュー
             GeometryReader { geo in
                 let cellSize = geo.size.width / CGFloat(layout.columns)
-                let cellWidth = cellSize
-                let cellHeight = cellSize
 
                 ZStack(alignment: .topLeading) {
                     // 空セル
                     ForEach(0..<layout.rows, id: \.self) { row in
                         ForEach(0..<layout.columns, id: \.self) { col in
                             if !isCellOccupied(row: row, col: col) {
-                                emptyCellView(row: row, col: col, cellWidth: cellWidth, cellHeight: cellHeight)
+                                Rectangle()
+                                    .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4]))
+                                    .foregroundStyle(.secondary.opacity(0.3))
+                                    .frame(width: cellSize - 6, height: cellSize - 6)
+                                    .position(
+                                        x: cellSize * (CGFloat(col) + 0.5),
+                                        y: cellSize * (CGFloat(row) + 0.5)
+                                    )
+                                    .overlay(
+                                        Image(systemName: "plus")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                            .position(
+                                                x: cellSize * (CGFloat(col) + 0.5),
+                                                y: cellSize * (CGFloat(row) + 0.5)
+                                            )
+                                    )
+                                    .onTapGesture {
+                                        addingAt = (row, col)
+                                    }
                             }
                         }
                     }
 
-                    // 配置済みボタン
+                    // ボタン（非ドラッグ中）
                     ForEach(layout.buttons) { button in
-                        buttonView(button: button, cellWidth: cellWidth, cellHeight: cellHeight)
+                        if draggingButtonId != button.id {
+                            editorButton(button: button, cellSize: cellSize, isDragging: false)
+                        }
+                    }
+
+                    // ドラッグ中のボタン（最前面）
+                    if let dragId = draggingButtonId,
+                       let button = layout.buttons.first(where: { $0.id == dragId }) {
+                        editorButton(button: button, cellSize: cellSize, isDragging: true)
+                            .offset(dragOffset)
+                            .zIndex(100)
                     }
                 }
-                .frame(height: cellHeight * CGFloat(layout.rows))
+                .frame(height: cellSize * CGFloat(layout.rows))
             }
             .frame(height: editorCellSize * CGFloat(layout.rows))
             .padding(.horizontal)
@@ -104,12 +112,9 @@ struct LayoutEditorView: View {
             Spacer()
         }
         .navigationTitle("キーボードレイアウト")
-        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button("リセット") {
-                    resetToDefault()
-                }
+                Button("リセット") { resetToDefault() }
             }
         }
         .sheet(item: $editingButton) { button in
@@ -148,43 +153,10 @@ struct LayoutEditorView: View {
         }
     }
 
-    // MARK: - Subviews
+    // MARK: - Editor Button
 
     @ViewBuilder
-    private func emptyCellView(row: Int, col: Int, cellWidth: CGFloat, cellHeight: CGFloat) -> some View {
-        Rectangle()
-            .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4]))
-            .foregroundStyle(isMoving ? .orange.opacity(0.4) : .secondary.opacity(0.3))
-            .frame(width: cellWidth - 6, height: cellHeight - 6)
-            .position(
-                x: cellWidth * (CGFloat(col) + 0.5),
-                y: cellHeight * (CGFloat(row) + 0.5)
-            )
-            .overlay(
-                Image(systemName: isMoving ? "arrow.down.right" : "plus")
-                    .font(.caption2)
-                    .foregroundStyle(isMoving ? .orange : .secondary)
-                    .position(
-                        x: cellWidth * (CGFloat(col) + 0.5),
-                        y: cellHeight * (CGFloat(row) + 0.5)
-                    )
-            )
-            .onTapGesture {
-                if let moving = movingButton {
-                    // 移動モード: 空セルに移動
-                    moving.row = row
-                    moving.col = col
-                    movingButton = nil
-                } else {
-                    addingAt = (row, col)
-                }
-            }
-    }
-
-    @ViewBuilder
-    private func buttonView(button: KeyboardButton, cellWidth: CGFloat, cellHeight: CGFloat) -> some View {
-        let isSelected = movingButton?.id == button.id
-
+    private func editorButton(button: KeyboardButton, cellSize: CGFloat, isDragging: Bool) -> some View {
         Group {
             if button.hasIcon {
                 Image(systemName: button.iconName)
@@ -195,46 +167,66 @@ struct LayoutEditorView: View {
             }
         }
         .frame(
-            width: cellWidth * CGFloat(button.colSpan) - 6,
-            height: cellHeight * CGFloat(button.rowSpan) - 6
+            width: cellSize * CGFloat(button.colSpan) - 6,
+            height: cellSize * CGFloat(button.rowSpan) - 6
         )
         .background(Color(.systemGray5))
         .cornerRadius(6)
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(.orange, lineWidth: isSelected ? 3 : 0)
-            )
-            .scaleEffect(isSelected ? 1.05 : 1.0)
-            .animation(.easeInOut(duration: 0.15), value: isSelected)
-            .position(
-                x: cellWidth * (CGFloat(button.col) + CGFloat(button.colSpan) / 2),
-                y: cellHeight * (CGFloat(button.row) + CGFloat(button.rowSpan) / 2)
-            )
-            .onTapGesture {
-                if let moving = movingButton {
-                    if moving.id == button.id {
-                        // 自分自身をタップ → 移動キャンセル
-                        movingButton = nil
-                    } else {
-                        // 別ボタンをタップ → スワップ
-                        let oldRow = moving.row
-                        let oldCol = moving.col
-                        moving.row = button.row
-                        moving.col = button.col
-                        button.row = oldRow
-                        button.col = oldCol
-                        movingButton = nil
+        .shadow(radius: isDragging ? 4 : 0)
+        .scaleEffect(isDragging ? 1.05 : 1.0)
+        .position(
+            x: cellSize * (CGFloat(button.col) + CGFloat(button.colSpan) / 2),
+            y: cellSize * (CGFloat(button.row) + CGFloat(button.rowSpan) / 2)
+        )
+        .gesture(
+            DragGesture(minimumDistance: 10)
+                .onChanged { value in
+                    if draggingButtonId == nil {
+                        draggingButtonId = button.id
                     }
-                } else {
-                    editingButton = button
+                    dragOffset = value.translation
                 }
+                .onEnded { value in
+                    dropButton(button, translation: value.translation, cellSize: cellSize)
+                    draggingButtonId = nil
+                    dragOffset = .zero
+                }
+        )
+        .onTapGesture {
+            if draggingButtonId == nil {
+                editingButton = button
             }
-            .onLongPressGesture {
-                movingButton = button
-            }
+        }
     }
 
     // MARK: - Logic
+
+    private func dropButton(_ button: KeyboardButton, translation: CGSize, cellSize: CGFloat) {
+        let currentX = cellSize * (CGFloat(button.col) + 0.5)
+        let currentY = cellSize * (CGFloat(button.row) + 0.5)
+        let newX = currentX + translation.width
+        let newY = currentY + translation.height
+
+        let newCol = max(0, min(layout.columns - button.colSpan, Int(newX / cellSize)))
+        let newRow = max(0, min(layout.rows - button.rowSpan, Int(newY / cellSize)))
+
+        if newRow == button.row && newCol == button.col { return }
+
+        if let target = layout.buttons.first(where: { other in
+            other.id != button.id &&
+            other.occupiedCells.contains { $0.row == newRow && $0.col == newCol }
+        }) {
+            let oldRow = button.row
+            let oldCol = button.col
+            button.row = target.row
+            button.col = target.col
+            target.row = oldRow
+            target.col = oldCol
+        } else {
+            button.row = newRow
+            button.col = newCol
+        }
+    }
 
     private func isCellOccupied(row: Int, col: Int) -> Bool {
         layout.buttons.contains { button in
@@ -247,7 +239,6 @@ struct LayoutEditorView: View {
             modelContext.delete(button)
         }
         layout.buttons.removeAll()
-        movingButton = nil
 
         layout.rows = 2
         layout.columns = 4

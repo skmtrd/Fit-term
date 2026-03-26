@@ -70,8 +70,7 @@ struct ProfileListView: View {
                                 Label("編集", systemImage: "pencil")
                             }
                             .tint(.blue)
-                        }
-                        .swipeActions(edge: .leading) {
+
                             Button {
                                 duplicateProfile(profile)
                             } label: {
@@ -200,6 +199,8 @@ struct ProfileListView: View {
             KeychainHelper.save(password: pw, forKey: copy.keychainPasswordKey)
         }
         modelContext.insert(copy)
+        // 複製したプロファイルの編集画面を開く
+        editingProfile = copy
     }
 }
 

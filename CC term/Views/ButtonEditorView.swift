@@ -100,11 +100,6 @@ struct ButtonEditorView: View {
                 Stepper("高さ: \(rowSpan) セル", value: $rowSpan, in: 1...3)
             }
 
-            Section {
-                Button("保存") { save() }
-                    .disabled(label.isEmpty)
-            }
-
             if onDelete != nil {
                 Section {
                     Button("このボタンを削除", role: .destructive) {
@@ -119,6 +114,10 @@ struct ButtonEditorView: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("キャンセル") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("保存") { save() }
+                    .disabled(!useIcon && label.isEmpty)
             }
         }
         .onAppear { loadExisting() }

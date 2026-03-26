@@ -6,10 +6,16 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct SessionTabBar: View {
     @Environment(SessionManager.self) private var sessionManager
+    @Query private var settingsList: [TerminalSettings]
     let onAddTap: () -> Void
+
+    private var terminalBgColor: Color {
+        settingsList.first?.backgroundColor ?? .black
+    }
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -18,6 +24,7 @@ struct SessionTabBar: View {
                     TabItem(
                         session: session,
                         isActive: session.id == sessionManager.activeSessionId,
+                        activeColor: terminalBgColor,
                         onTap: { sessionManager.switchTo(session) },
                         onClose: { sessionManager.removeSession(session) }
                     )
@@ -30,7 +37,7 @@ struct SessionTabBar: View {
                     Image(systemName: "plus")
                         .font(.caption)
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 10)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -43,6 +50,7 @@ struct SessionTabBar: View {
 private struct TabItem: View {
     let session: Session
     let isActive: Bool
+    let activeColor: Color
     let onTap: () -> Void
     let onClose: () -> Void
 
@@ -58,6 +66,7 @@ private struct TabItem: View {
             Text(session.displayName)
                 .font(.caption)
                 .lineLimit(1)
+                .foregroundStyle(isActive ? .white : .primary)
 
             Button {
                 if session.isConnected {
@@ -72,10 +81,19 @@ private struct TabItem: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(isActive ? Color(.systemBackground) : Color.clear)
-        .cornerRadius(6)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            isActive
+                ? activeColor
+                : Color.clear,
+            in: UnevenRoundedRectangle(
+                topLeadingRadius: 8,
+                bottomLeadingRadius: 0,
+                bottomTrailingRadius: 0,
+                topTrailingRadius: 8
+            )
+        )
         .contentShape(Rectangle())
         .onTapGesture { onTap() }
         .alert("切断しますか？", isPresented: $showCloseConfirm) {

@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftData
+import SwiftUI
 import UIKit
 
 @Model
@@ -52,5 +53,10 @@ final class TerminalSettings {
     /// 背景色の UIColor を生成
     var uiBackgroundColor: UIColor {
         UIColor(red: backgroundColorRed, green: backgroundColorGreen, blue: backgroundColorBlue, alpha: 1)
+    }
+
+    /// 背景色の SwiftUI Color を生成
+    var backgroundColor: Color {
+        Color(red: backgroundColorRed, green: backgroundColorGreen, blue: backgroundColorBlue)
     }
 }

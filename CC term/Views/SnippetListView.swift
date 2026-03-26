@@ -33,11 +33,20 @@ struct SnippetListView: View {
                     ForEach(snippets) { snippet in
                         SnippetRow(snippet: snippet)
                             .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedSnippet = snippet
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    modelContext.delete(snippet)
+                                } label: {
+                                    Label("削除", systemImage: "trash")
+                                }
+                                Button {
+                                    selectedSnippet = snippet
+                                } label: {
+                                    Label("編集", systemImage: "pencil")
+                                }
+                                .tint(.blue)
                             }
                     }
-                    .onDelete(perform: deleteSnippets)
                 }
             }
         }
@@ -63,11 +72,6 @@ struct SnippetListView: View {
         }
     }
 
-    private func deleteSnippets(at offsets: IndexSet) {
-        for index in offsets {
-            modelContext.delete(snippets[index])
-        }
-    }
 }
 
 // MARK: - Row
