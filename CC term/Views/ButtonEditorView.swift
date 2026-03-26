@@ -29,39 +29,64 @@ struct ButtonEditorView: View {
     @State private var useIcon: Bool = false
     @State private var iconName: String = ""
 
-    private static let availableIcons: [(name: String, symbol: String)] = [
-        ("chevron.left", "chevron.left"),
-        ("chevron.right", "chevron.right"),
-        ("chevron.up", "chevron.up"),
-        ("chevron.down", "chevron.down"),
-        ("arrow.right.to.line", "arrow.right.to.line"),
-        ("escape", "escape"),
-        ("return", "return"),
-        ("delete.left", "delete.left"),
-        ("delete.right", "delete.right"),
-        ("keyboard.chevron.compact.down", "keyboard.chevron.compact.down"),
-        ("command", "command"),
-        ("control", "control"),
-        ("option", "option"),
-        ("shift", "shift"),
-        ("globe", "globe"),
-        ("arrow.up", "arrow.up"),
-        ("arrow.down", "arrow.down"),
-        ("arrow.left", "arrow.left"),
-        ("arrow.right", "arrow.right"),
-        ("arrow.uturn.left", "arrow.uturn.left"),
-        ("doc.on.clipboard", "doc.on.clipboard"),
-        ("scissors", "scissors"),
-        ("magnifyingglass", "magnifyingglass"),
-        ("terminal", "terminal"),
-        ("folder", "folder"),
-        ("play", "play"),
-        ("stop", "stop"),
-        ("xmark", "xmark"),
-        ("checkmark", "checkmark"),
-        ("house", "house"),
-        ("gearshape", "gearshape"),
-        ("square.and.arrow.up", "square.and.arrow.up"),
+    private struct IconCategory {
+        let name: String
+        let symbols: [String]
+    }
+
+    private static let iconCategories: [IconCategory] = [
+        IconCategory(name: "キーボード", symbols: [
+            "escape", "return", "delete.left", "delete.right",
+            "arrow.right.to.line", "arrow.left.to.line",
+            "keyboard.chevron.compact.down", "command", "control", "option", "shift",
+        ]),
+        IconCategory(name: "矢印・方向", symbols: [
+            "chevron.up", "chevron.down", "chevron.left", "chevron.right",
+            "arrow.up", "arrow.down", "arrow.left", "arrow.right",
+            "arrow.uturn.left", "arrow.uturn.right",
+            "arrow.up.arrow.down", "arrow.left.arrow.right",
+            "arrow.up.doc", "arrow.down.doc",
+            "arrow.up.to.line", "arrow.down.to.line",
+            "arrow.left.to.line", "arrow.right.to.line",
+        ]),
+        IconCategory(name: "サーバー・ネットワーク", symbols: [
+            "server.rack", "network", "wifi", "globe",
+            "antenna.radiowaves.left.and.right", "link",
+        ]),
+        IconCategory(name: "ファイル・フォルダ", symbols: [
+            "folder", "folder.fill", "doc", "doc.text",
+            "doc.on.clipboard", "trash",
+            "square.and.arrow.up", "square.and.arrow.down",
+        ]),
+        IconCategory(name: "ツール・操作", symbols: [
+            "wrench", "hammer", "gearshape", "terminal",
+            "power", "bolt", "play", "stop",
+            "arrow.clockwise", "arrow.counterclockwise",
+            "arrow.triangle.2.circlepath",
+            "scissors", "magnifyingglass",
+        ]),
+        IconCategory(name: "開発", symbols: [
+            "chevron.left.forwardslash.chevron.right",
+            "ladybug", "ant", "cube", "shippingbox", "externaldrive",
+        ]),
+        IconCategory(name: "状態・フィードバック", symbols: [
+            "checkmark", "xmark", "exclamationmark.triangle", "info.circle",
+            "bell", "eye", "eye.slash", "lock", "lock.open",
+            "stop.circle", "pause.circle", "xmark.octagon",
+        ]),
+        IconCategory(name: "ブックマーク", symbols: [
+            "star", "star.fill", "bookmark", "pin", "flag", "heart", "tag",
+            "house",
+        ]),
+        IconCategory(name: "テキスト", symbols: [
+            "textformat", "character.cursor.ibeam",
+            "text.alignleft", "list.bullet", "number",
+        ]),
+        IconCategory(name: "記号", symbols: [
+            "slash.circle", "minus", "plus", "dollarsign",
+            "greaterthan", "lessthan", "equal",
+            "plus.square", "xmark.square",
+        ]),
     ]
 
     var body: some View {
@@ -126,7 +151,7 @@ struct ButtonEditorView: View {
     @ViewBuilder
     private var keyActionPicker: some View {
         let categories = Dictionary(grouping: KeyAction.allCases, by: { $0.category })
-        let sortedKeys = ["特殊キー", "矢印キー", "Ctrl 組み合わせ", "Shift 組み合わせ", "記号", "UI 操作"]
+        let sortedKeys = ["特殊キー", "矢印キー", "ナビゲーション", "ファンクションキー", "Ctrl 組み合わせ", "Alt 組み合わせ", "Shift 組み合わせ", "記号", "UI 操作"]
 
         ForEach(sortedKeys, id: \.self) { category in
             if let actions = categories[category] {
@@ -195,25 +220,29 @@ struct ButtonEditorView: View {
 
     @ViewBuilder
     private var iconPicker: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 12) {
-            ForEach(Self.availableIcons, id: \.symbol) { icon in
-                Button {
-                    iconName = icon.symbol
-                } label: {
-                    Image(systemName: icon.symbol)
-                        .font(.system(size: 20))
-                        .frame(width: 40, height: 40)
-                        .background(iconName == icon.symbol ? Color.blue.opacity(0.2) : Color(.systemGray6))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .strokeBorder(.blue, lineWidth: iconName == icon.symbol ? 2 : 0)
-                        )
+        ForEach(Self.iconCategories, id: \.name) { category in
+            DisclosureGroup(category.name) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 10) {
+                    ForEach(category.symbols, id: \.self) { symbol in
+                        Button {
+                            iconName = symbol
+                        } label: {
+                            Image(systemName: symbol)
+                                .font(.system(size: 18))
+                                .frame(width: 38, height: 38)
+                                .background(iconName == symbol ? Color.blue.opacity(0.2) : Color(.systemGray6))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .strokeBorder(.blue, lineWidth: iconName == symbol ? 2 : 0)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .buttonStyle(.plain)
+                .padding(.vertical, 4)
             }
         }
-        .padding(.vertical, 4)
     }
 
     private func loadExisting() {

@@ -59,6 +59,12 @@ struct KeyboardExtensionView: View {
                 newTab()
                 return
             }
+            if button.keyActionRawValue == KeyAction.paste.rawValue {
+                if let text = UIPasteboard.general.string {
+                    sendToShell(Data(text.utf8))
+                }
+                return
+            }
             guard let bytes = button.keyBytes else { return }
             sendToShell(bytes)
         case "snippet":
