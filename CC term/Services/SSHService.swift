@@ -30,9 +30,12 @@ final class SSHService {
     private var client: SSHClient?
     private var shellInputContinuation: AsyncStream<ShellInput>.Continuation?
 
+    private var keepAliveTask: Task<Void, Never>?
+
     private enum ShellInput: Sendable {
         case data(Data)
         case resize(cols: Int, rows: Int)
+        case keepAlive
     }
 
     // MARK: - Connection
@@ -67,6 +70,7 @@ final class SSHService {
     }
 
     func disconnect() async {
+        stopKeepAlive()
         shellInputContinuation?.finish()
         shellInputContinuation = nil
         if let client {
@@ -89,6 +93,7 @@ final class SSHService {
 
         let (inputStream, inputContinuation) = AsyncStream.makeStream(of: ShellInput.self)
         self.shellInputContinuation = inputContinuation
+        startKeepAlive()
 
         let ptyRequest = SSHChannelRequestEvent.PseudoTerminalRequest(
             wantReply: true,
@@ -127,6 +132,11 @@ final class SSHService {
                                 pixelWidth: 0,
                                 pixelHeight: 0
                             )
+                        case .keepAlive:
+                            // SSH チャンネルに空データを送信して接続を維持
+                            var buf = ByteBuffer()
+                            buf.writeInteger(UInt8(0))
+                            try await outbound.write(buf)
                         }
                     }
                 }
@@ -136,6 +146,7 @@ final class SSHService {
             }
         }
 
+        stopKeepAlive()
         self.shellInputContinuation = nil
         connectionState = .disconnected
     }
@@ -146,6 +157,24 @@ final class SSHService {
 
     func resizeShell(cols: Int, rows: Int) {
         shellInputContinuation?.yield(.resize(cols: cols, rows: rows))
+    }
+
+    // MARK: - Keep Alive
+
+    private func startKeepAlive() {
+        stopKeepAlive()
+        keepAliveTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(30))
+                if Task.isCancelled { break }
+                shellInputContinuation?.yield(.keepAlive)
+            }
+        }
+    }
+
+    private func stopKeepAlive() {
+        keepAliveTask?.cancel()
+        keepAliveTask = nil
     }
 
     // MARK: - Error Mapping

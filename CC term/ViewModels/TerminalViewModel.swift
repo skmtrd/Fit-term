@@ -6,13 +6,15 @@
 //
 
 import Foundation
+import UIKit
 @preconcurrency import SwiftTerm
 
 @Observable @MainActor
 final class TerminalViewModel {
     let sshService: SSHService
 
-    private(set) weak var terminalView: TerminalView?
+    /// 強参照で保持 — 画面遷移で破棄されないようにする
+    private(set) var terminalView: TerminalView?
     var title: String = "Terminal"
 
     private var shellTask: Task<Void, Never>?
@@ -43,9 +45,17 @@ final class TerminalViewModel {
         }
     }
 
-    func attachTerminalView(_ tv: TerminalView) {
+    /// TerminalView を取得（既存があれば再利用）
+    func getOrCreateTerminalView(coordinator: SwiftTerminalView.Coordinator) -> TerminalView {
+        if let existing = terminalView {
+            existing.terminalDelegate = coordinator
+            return existing
+        }
+        let tv = TerminalView(frame: .zero)
+        tv.terminalDelegate = coordinator
+        tv.isScrollEnabled = true
         self.terminalView = tv
-        // Don't start shell yet — wait for sizeChanged with actual dimensions
+        return tv
     }
 
     func resizeShell(cols: Int, rows: Int) {
@@ -60,16 +70,23 @@ final class TerminalViewModel {
     }
 
     private func startShell(cols: Int, rows: Int) {
-        guard let tv = terminalView else { return }
-
-        let cmdToRun = initialCommand
         shellTask = Task { [weak self] in
             guard let self else { return }
+
+            // 接続完了を待つ
+            while !isConnected {
+                if Task.isCancelled { return }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+
+            // 接続完了後に initialCommand を取得（connect() で設定済み）
+            let cmdToRun = initialCommand
+
             do {
-                try await sshService.startShell(cols: cols, rows: rows) { [weak tv] data in
+                try await sshService.startShell(cols: cols, rows: rows) { [weak self] data in
                     let bytes = [UInt8](data)
                     DispatchQueue.main.async {
-                        tv?.feed(byteArray: ArraySlice(bytes))
+                        self?.terminalView?.feed(byteArray: ArraySlice(bytes))
                     }
                 }
             } catch {
@@ -77,11 +94,16 @@ final class TerminalViewModel {
             }
         }
 
-        // 初期コマンドをシェル起動後に1行ずつ送信
-        if !cmdToRun.isEmpty {
-            let lines = cmdToRun.components(separatedBy: .newlines).filter { !$0.isEmpty }
-            Task {
-                try? await Task.sleep(for: .milliseconds(500))
+        // 初期コマンドの送信も Task 内で接続後に実行
+        Task { [weak self] in
+            guard let self else { return }
+
+            // シェル起動を待つ
+            try? await Task.sleep(for: .milliseconds(1000))
+
+            let cmdToRun = initialCommand
+            if !cmdToRun.isEmpty {
+                let lines = cmdToRun.components(separatedBy: .newlines).filter { !$0.isEmpty }
                 for line in lines {
                     let cmd = line + "\n"
                     sshService.sendToShell(Data(cmd.utf8))
@@ -99,5 +121,23 @@ final class TerminalViewModel {
 
     func sendToShell(_ data: Data) {
         sshService.sendToShell(data)
+    }
+
+    func focusTerminal() {
+        terminalView?.becomeFirstResponder()
+        refreshDisplay()
+    }
+
+    func refreshDisplay() {
+        guard let tv = terminalView else { return }
+        tv.setNeedsLayout()
+        tv.layoutIfNeeded()
+        tv.setNeedsDisplay()
+        // 現在のサイズでリサイズを再送信して表示を同期
+        let cols = tv.getTerminal().cols
+        let rows = tv.getTerminal().rows
+        if cols > 0, rows > 0 {
+            sshService.resizeShell(cols: cols, rows: rows)
+        }
     }
 }

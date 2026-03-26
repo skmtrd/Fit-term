@@ -10,13 +10,13 @@ import SwiftData
 
 @main
 struct CC_termApp: App {
-    @State private var sshService = SSHService()
+    @State private var sessionManager = SessionManager()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environment(sshService)
+                .environment(sessionManager)
         }
-        .modelContainer(for: [ConnectionProfile.self, Snippet.self])
+        .modelContainer(for: [ConnectionProfile.self, Snippet.self, TerminalSettings.self])
     }
 }

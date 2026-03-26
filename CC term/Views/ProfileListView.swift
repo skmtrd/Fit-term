@@ -10,7 +10,7 @@ import SwiftData
 
 struct ProfileListView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(SSHService.self) private var sshService
+    @Environment(SessionManager.self) private var sessionManager
     @Query(sort: \ConnectionProfile.updatedAt, order: .reverse) private var profiles: [ConnectionProfile]
 
     @State private var showNewProfile = false
@@ -18,13 +18,30 @@ struct ProfileListView: View {
     @State private var connectingProfile: ConnectionProfile?
     @State private var password: String = ""
     @State private var showPasswordPrompt = false
-    @State private var navigateToTerminal = false
-    @State private var viewModel: TerminalViewModel?
+    @State private var navigateToSessions = false
     @State private var errorMessage: String?
-    @State private var isConnecting = false
 
     var body: some View {
         List {
+            // アクティブセッションがあれば表示
+            if sessionManager.hasActiveSessions {
+                Section {
+                    Button {
+                        navigateToSessions = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "terminal")
+                                .foregroundStyle(.green)
+                            Text("アクティブセッション (\(sessionManager.sessions.count))")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
             if profiles.isEmpty {
                 ContentUnavailableView(
                     "プロファイルがありません",
@@ -33,46 +50,58 @@ struct ProfileListView: View {
                 )
             }
 
-            ForEach(profiles) { profile in
-                ProfileRow(profile: profile)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        startConnection(profile: profile)
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            deleteProfile(profile)
-                        } label: {
-                            Label("削除", systemImage: "trash")
+            Section("プロファイル") {
+                ForEach(profiles) { profile in
+                    ProfileRow(profile: profile)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            startConnection(profile: profile)
                         }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                deleteProfile(profile)
+                            } label: {
+                                Label("削除", systemImage: "trash")
+                            }
 
-                        Button {
-                            editingProfile = profile
-                        } label: {
-                            Label("編集", systemImage: "pencil")
+                            Button {
+                                editingProfile = profile
+                            } label: {
+                                Label("編集", systemImage: "pencil")
+                            }
+                            .tint(.blue)
                         }
-                        .tint(.blue)
-                    }
-                    .swipeActions(edge: .leading) {
-                        Button {
-                            duplicateProfile(profile)
-                        } label: {
-                            Label("複製", systemImage: "doc.on.doc")
+                        .swipeActions(edge: .leading) {
+                            Button {
+                                duplicateProfile(profile)
+                            } label: {
+                                Label("複製", systemImage: "doc.on.doc")
+                            }
+                            .tint(.green)
                         }
-                        .tint(.green)
-                    }
+                }
             }
         }
         .navigationTitle("CC term")
         .navigationDestination(for: String.self) { destination in
-            if destination == "snippets" {
-                SnippetListView()
+            switch destination {
+            case "snippets": SnippetListView()
+            case "settings": TerminalSettingsView()
+            default: EmptyView()
             }
+        }
+        .navigationDestination(isPresented: $navigateToSessions) {
+            SessionContainerView()
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                NavigationLink(value: "snippets") {
-                    Image(systemName: "text.badge.star")
+                HStack(spacing: 16) {
+                    NavigationLink(value: "snippets") {
+                        Image(systemName: "text.badge.star")
+                    }
+                    NavigationLink(value: "settings") {
+                        Image(systemName: "gearshape")
+                    }
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -123,17 +152,11 @@ struct ProfileListView: View {
                 Text(errorMessage)
             }
         }
-        .navigationDestination(isPresented: $navigateToTerminal) {
-            if let viewModel {
-                TerminalScreen(viewModel: viewModel)
-            }
-        }
     }
 
     private func startConnection(profile: ConnectionProfile) {
         connectingProfile = profile
 
-        // Keychain にパスワードがあればそれを使う
         if let saved = KeychainHelper.load(forKey: profile.keychainPasswordKey) {
             password = saved
             performConnection()
@@ -145,19 +168,17 @@ struct ProfileListView: View {
 
     private func performConnection() {
         guard let profile = connectingProfile else { return }
-        let config = profile.toSSHConfig(password: password)
-        let vm = TerminalViewModel(sshService: sshService)
-        self.viewModel = vm
-        isConnecting = true
+        let session = sessionManager.addSession(profile: profile, password: password)
 
+        // 接続完了を待ってからナビゲーション
         Task {
-            await vm.connect(config: config, initialCommand: profile.initialCommand)
-            isConnecting = false
-
-            if vm.isConnected {
-                navigateToTerminal = true
+            // 少し待ってから接続状態を確認
+            try? await Task.sleep(for: .milliseconds(500))
+            if session.viewModel.isConnected || session.viewModel.isConnecting {
+                navigateToSessions = true
             } else {
-                errorMessage = sshService.lastError ?? "接続に失敗しました。"
+                errorMessage = session.sshService.lastError ?? "接続に失敗しました。"
+                sessionManager.removeSession(session)
             }
             connectingProfile = nil
             password = ""
@@ -171,7 +192,6 @@ struct ProfileListView: View {
 
     private func duplicateProfile(_ profile: ConnectionProfile) {
         let copy = profile.duplicate()
-        // パスワードも複製
         if let pw = KeychainHelper.load(forKey: profile.keychainPasswordKey) {
             KeychainHelper.save(password: pw, forKey: copy.keychainPasswordKey)
         }

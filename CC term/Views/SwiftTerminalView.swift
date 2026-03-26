@@ -6,23 +6,35 @@
 //
 
 import SwiftUI
+import SwiftData
 @preconcurrency import SwiftTerm
 
 struct SwiftTerminalView: UIViewRepresentable {
     let viewModel: TerminalViewModel
+    @Query private var settingsList: [TerminalSettings]
+
+    private var settings: TerminalSettings? { settingsList.first }
 
     func makeUIView(context: Context) -> TerminalView {
-        let tv = TerminalView(frame: .zero)
-        tv.terminalDelegate = context.coordinator
-        tv.nativeBackgroundColor = .black
-        tv.nativeForegroundColor = .white
-        tv.font = UIFont.monospacedSystemFont(ofSize: 14, weight: .regular)
-        tv.isScrollEnabled = true
-        viewModel.attachTerminalView(tv)
+        let tv = viewModel.getOrCreateTerminalView(coordinator: context.coordinator)
+        applySettings(to: tv)
         return tv
     }
 
-    func updateUIView(_ uiView: TerminalView, context: Context) {}
+    func updateUIView(_ uiView: TerminalView, context: Context) {
+        applySettings(to: uiView)
+    }
+
+    private func applySettings(to tv: TerminalView) {
+        if let settings {
+            tv.font = settings.uiFont
+            tv.nativeBackgroundColor = settings.uiBackgroundColor
+        } else {
+            tv.font = UIFont.monospacedSystemFont(ofSize: 14, weight: .regular)
+            tv.nativeBackgroundColor = .black
+        }
+        tv.nativeForegroundColor = .white
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(viewModel: viewModel)
