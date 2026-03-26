@@ -1,6 +1,6 @@
 //
 //  ConnectionProfile.swift
-//  CC term
+//  Fit term
 //
 //  Created by 坂本蒼哉 on 2026/03/26.
 //
@@ -21,7 +21,7 @@ final class ConnectionProfile {
 
     /// パスワードは Keychain に保存するため、このキーで紐づける
     var keychainPasswordKey: String {
-        "cc-term-password-\(id.uuidString)"
+        "fit-term-password-\(id.uuidString)"
     }
 
     init(

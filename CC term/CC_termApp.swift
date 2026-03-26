@@ -1,6 +1,6 @@
 //
 //  CC_termApp.swift
-//  CC term
+//  Fit term
 //
 //  Created by 坂本蒼哉 on 2026/03/26.
 //
