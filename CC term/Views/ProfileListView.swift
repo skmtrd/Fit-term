@@ -52,11 +52,12 @@ struct ProfileListView: View {
 
             Section("プロファイル") {
                 ForEach(profiles) { profile in
-                    ProfileRow(profile: profile)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            startConnection(profile: profile)
-                        }
+                    Button {
+                        startConnection(profile: profile)
+                    } label: {
+                        ProfileRow(profile: profile)
+                    }
+                    .tint(.primary)
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
                                 deleteProfile(profile)

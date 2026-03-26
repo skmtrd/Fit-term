@@ -14,8 +14,6 @@ struct LayoutEditorView: View {
 
     @State private var editingButton: KeyboardButton?
     @State private var addingAt: (row: Int, col: Int)?
-    @State private var draggingButtonId: UUID?
-    @State private var dragOffset: CGSize = .zero
 
     private var editorCellSize: CGFloat {
         let cols = layouts.first?.columns ?? 4
@@ -89,19 +87,16 @@ struct LayoutEditorView: View {
                         }
                     }
 
-                    // ボタン（非ドラッグ中）
+                    // ボタン
                     ForEach(layout.buttons) { button in
-                        if draggingButtonId != button.id {
-                            editorButton(button: button, cellSize: cellSize, isDragging: false)
-                        }
-                    }
-
-                    // ドラッグ中のボタン（最前面）
-                    if let dragId = draggingButtonId,
-                       let button = layout.buttons.first(where: { $0.id == dragId }) {
-                        editorButton(button: button, cellSize: cellSize, isDragging: true)
-                            .offset(dragOffset)
-                            .zIndex(100)
+                        DraggableEditorButton(
+                            button: button,
+                            cellSize: cellSize,
+                            onTap: { editingButton = button },
+                            onDrop: { translation in
+                                dropButton(button, translation: translation, cellSize: cellSize)
+                            }
+                        )
                     }
                 }
                 .frame(height: cellSize * CGFloat(layout.rows))
@@ -149,52 +144,6 @@ struct LayoutEditorView: View {
                         onDelete: nil
                     )
                 }
-            }
-        }
-    }
-
-    // MARK: - Editor Button
-
-    @ViewBuilder
-    private func editorButton(button: KeyboardButton, cellSize: CGFloat, isDragging: Bool) -> some View {
-        Group {
-            if button.hasIcon {
-                Image(systemName: button.iconName)
-                    .font(.system(size: 16))
-            } else {
-                Text(button.label)
-                    .font(.system(.caption, design: .monospaced))
-            }
-        }
-        .frame(
-            width: cellSize * CGFloat(button.colSpan) - 6,
-            height: cellSize * CGFloat(button.rowSpan) - 6
-        )
-        .background(Color(.systemGray5))
-        .cornerRadius(6)
-        .shadow(radius: isDragging ? 4 : 0)
-        .scaleEffect(isDragging ? 1.05 : 1.0)
-        .position(
-            x: cellSize * (CGFloat(button.col) + CGFloat(button.colSpan) / 2),
-            y: cellSize * (CGFloat(button.row) + CGFloat(button.rowSpan) / 2)
-        )
-        .gesture(
-            DragGesture(minimumDistance: 10)
-                .onChanged { value in
-                    if draggingButtonId == nil {
-                        draggingButtonId = button.id
-                    }
-                    dragOffset = value.translation
-                }
-                .onEnded { value in
-                    dropButton(button, translation: value.translation, cellSize: cellSize)
-                    draggingButtonId = nil
-                    dragOffset = .zero
-                }
-        )
-        .onTapGesture {
-            if draggingButtonId == nil {
-                editingButton = button
             }
         }
     }
@@ -265,5 +214,68 @@ struct LayoutEditorView: View {
             )
             layout.buttons.append(button)
         }
+    }
+}
+
+// MARK: - Draggable Button (独立ビュー — 親を再描画しない)
+
+private struct DraggableEditorButton: View {
+    let button: KeyboardButton
+    let cellSize: CGFloat
+    let onTap: () -> Void
+    let onDrop: (CGSize) -> Void
+
+    @GestureState private var dragOffset: CGSize = .zero
+    @State private var isDragging = false
+
+    var body: some View {
+        Group {
+            if button.hasIcon {
+                Image(systemName: button.iconName)
+                    .font(.system(size: 16))
+            } else {
+                Text(button.label)
+                    .font(.system(.caption, design: .monospaced))
+            }
+        }
+        .frame(
+            width: cellSize * CGFloat(button.colSpan) - 6,
+            height: cellSize * CGFloat(button.rowSpan) - 6
+        )
+        .background(Color(.systemGray5))
+        .cornerRadius(6)
+        .shadow(radius: isDragging ? 6 : 0)
+        .scaleEffect(isDragging ? 1.08 : 1.0)
+        .zIndex(isDragging ? 100 : 0)
+        .position(
+            x: cellSize * (CGFloat(button.col) + CGFloat(button.colSpan) / 2),
+            y: cellSize * (CGFloat(button.row) + CGFloat(button.rowSpan) / 2)
+        )
+        .offset(dragOffset)
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .updating($dragOffset) { value, state, _ in
+                    let dist = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
+                    if dist > 8 {
+                        state = value.translation
+                    }
+                }
+                .onChanged { value in
+                    let dist = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
+                    if dist > 8 {
+                        isDragging = true
+                    }
+                }
+                .onEnded { value in
+                    let dist = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
+                    if dist <= 8 {
+                        onTap()
+                    } else {
+                        onDrop(value.translation)
+                    }
+                    isDragging = false
+                }
+        )
+        .animation(.easeOut(duration: 0.15), value: isDragging)
     }
 }
