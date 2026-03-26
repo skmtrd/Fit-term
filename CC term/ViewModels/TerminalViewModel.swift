@@ -54,6 +54,7 @@ final class TerminalViewModel {
         let tv = TerminalView(frame: .zero)
         tv.terminalDelegate = coordinator
         tv.isScrollEnabled = true
+        tv.inputAccessoryView = nil
         self.terminalView = tv
         return tv
     }

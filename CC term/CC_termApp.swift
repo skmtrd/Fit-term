@@ -17,6 +17,6 @@ struct CC_termApp: App {
             ContentView()
                 .environment(sessionManager)
         }
-        .modelContainer(for: [ConnectionProfile.self, Snippet.self, TerminalSettings.self])
+        .modelContainer(for: [ConnectionProfile.self, Snippet.self, TerminalSettings.self, KeyboardLayout.self, KeyboardButton.self])
     }
 }

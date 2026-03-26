@@ -1,0 +1,267 @@
+//
+//  ButtonEditorView.swift
+//  CC term
+//
+//  Created by 坂本蒼哉 on 2026/03/26.
+//
+
+import SwiftUI
+import SwiftData
+
+struct ButtonEditorView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Query private var snippets: [Snippet]
+
+    let row: Int
+    let col: Int
+    let existingButton: KeyboardButton?
+    let onSave: (KeyboardButton) -> Void
+    let onDelete: (() -> Void)?
+
+    @State private var label: String = ""
+    @State private var colorHex: String = "#007AFF"
+    @State private var buttonColor: Color = .blue
+    @State private var actionType: String = "key"
+    @State private var selectedKeyAction: KeyAction = .escape
+    @State private var selectedSnippetId: UUID?
+    @State private var colSpan: Int = 1
+    @State private var rowSpan: Int = 1
+    @State private var useIcon: Bool = false
+    @State private var iconName: String = ""
+
+    private static let availableIcons: [(name: String, symbol: String)] = [
+        ("chevron.left", "chevron.left"),
+        ("chevron.right", "chevron.right"),
+        ("chevron.up", "chevron.up"),
+        ("chevron.down", "chevron.down"),
+        ("arrow.right.to.line", "arrow.right.to.line"),
+        ("escape", "escape"),
+        ("return", "return"),
+        ("delete.left", "delete.left"),
+        ("delete.right", "delete.right"),
+        ("keyboard.chevron.compact.down", "keyboard.chevron.compact.down"),
+        ("command", "command"),
+        ("control", "control"),
+        ("option", "option"),
+        ("shift", "shift"),
+        ("globe", "globe"),
+        ("arrow.up", "arrow.up"),
+        ("arrow.down", "arrow.down"),
+        ("arrow.left", "arrow.left"),
+        ("arrow.right", "arrow.right"),
+        ("arrow.uturn.left", "arrow.uturn.left"),
+        ("doc.on.clipboard", "doc.on.clipboard"),
+        ("scissors", "scissors"),
+        ("magnifyingglass", "magnifyingglass"),
+        ("terminal", "terminal"),
+        ("folder", "folder"),
+        ("play", "play"),
+        ("stop", "stop"),
+        ("xmark", "xmark"),
+        ("checkmark", "checkmark"),
+        ("house", "house"),
+        ("gearshape", "gearshape"),
+        ("square.and.arrow.up", "square.and.arrow.up"),
+    ]
+
+    var body: some View {
+        Form {
+            Section("表示") {
+                Picker("種類", selection: $useIcon) {
+                    Text("テキスト").tag(false)
+                    Text("アイコン").tag(true)
+                }
+                .pickerStyle(.segmented)
+
+                if useIcon {
+                    iconPicker
+                } else {
+                    TextField("表示テキスト", text: $label)
+                        .font(.system(.body, design: .monospaced))
+                }
+            }
+
+            Section("アクション") {
+                Picker("種類", selection: $actionType) {
+                    Text("キーアクション").tag("key")
+                    Text("スニペット").tag("snippet")
+                }
+                .pickerStyle(.segmented)
+
+                if actionType == "key" {
+                    keyActionPicker
+                } else {
+                    snippetPicker
+                }
+            }
+
+            Section("サイズ") {
+                Stepper("横幅: \(colSpan) セル", value: $colSpan, in: 1...4)
+                Stepper("高さ: \(rowSpan) セル", value: $rowSpan, in: 1...3)
+            }
+
+            Section {
+                Button("保存") { save() }
+                    .disabled(label.isEmpty)
+            }
+
+            if onDelete != nil {
+                Section {
+                    Button("このボタンを削除", role: .destructive) {
+                        onDelete?()
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .navigationTitle(existingButton != nil ? "ボタン編集" : "ボタン追加")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("キャンセル") { dismiss() }
+            }
+        }
+        .onAppear { loadExisting() }
+    }
+
+    @ViewBuilder
+    private var keyActionPicker: some View {
+        let categories = Dictionary(grouping: KeyAction.allCases, by: { $0.category })
+        let sortedKeys = ["特殊キー", "矢印キー", "Ctrl 組み合わせ", "Shift 組み合わせ", "記号", "UI 操作"]
+
+        ForEach(sortedKeys, id: \.self) { category in
+            if let actions = categories[category] {
+                DisclosureGroup(category) {
+                    ForEach(actions, id: \.rawValue) { action in
+                        HStack {
+                            Text(action.defaultLabel)
+                                .font(.system(.body, design: .monospaced))
+                            Spacer()
+                            Text(action.rawValue)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if selectedKeyAction == action {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(.blue)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            selectedKeyAction = action
+                            if label.isEmpty || KeyAction.allCases.contains(where: { $0.defaultLabel == label }) {
+                                label = action.defaultLabel
+                            }
+                            if !action.defaultIconName.isEmpty {
+                                iconName = action.defaultIconName
+                                useIcon = true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var snippetPicker: some View {
+        if snippets.isEmpty {
+            Text("スニペットがありません")
+                .foregroundStyle(.secondary)
+        } else {
+            ForEach(snippets) { snippet in
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text(snippet.label)
+                            .font(.headline)
+                        Text(snippet.command)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if selectedSnippetId == snippet.id {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(.blue)
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    selectedSnippetId = snippet.id
+                    if label.isEmpty {
+                        label = snippet.label
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var iconPicker: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 12) {
+            ForEach(Self.availableIcons, id: \.symbol) { icon in
+                Button {
+                    iconName = icon.symbol
+                } label: {
+                    Image(systemName: icon.symbol)
+                        .font(.system(size: 20))
+                        .frame(width: 40, height: 40)
+                        .background(iconName == icon.symbol ? Color.blue.opacity(0.2) : Color(.systemGray6))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .strokeBorder(.blue, lineWidth: iconName == icon.symbol ? 2 : 0)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func loadExisting() {
+        guard let button = existingButton else { return }
+        label = button.label
+        iconName = button.iconName
+        useIcon = button.hasIcon
+        colorHex = button.colorHex
+        buttonColor = button.color
+        actionType = button.actionType
+        colSpan = button.colSpan
+        rowSpan = button.rowSpan
+        if let raw = button.keyActionRawValue, let action = KeyAction(rawValue: raw) {
+            selectedKeyAction = action
+        }
+        selectedSnippetId = button.snippetId
+    }
+
+    private func save() {
+        let hex = buttonColor.hexString
+        let resolvedIcon = useIcon ? iconName : ""
+        let button: KeyboardButton
+        if let existing = existingButton {
+            existing.label = label
+            existing.iconName = resolvedIcon
+            existing.colorHex = hex
+            existing.actionType = actionType
+            existing.colSpan = colSpan
+            existing.rowSpan = rowSpan
+            existing.keyActionRawValue = actionType == "key" ? selectedKeyAction.rawValue : nil
+            existing.snippetId = actionType == "snippet" ? selectedSnippetId : nil
+            button = existing
+        } else {
+            button = KeyboardButton(
+                row: row,
+                col: col,
+                rowSpan: rowSpan,
+                colSpan: colSpan,
+                label: label,
+                iconName: resolvedIcon,
+                colorHex: hex,
+                actionType: actionType,
+                keyActionRawValue: actionType == "key" ? selectedKeyAction.rawValue : nil,
+                snippetId: actionType == "snippet" ? selectedSnippetId : nil
+            )
+        }
+        onSave(button)
+        dismiss()
+    }
+}

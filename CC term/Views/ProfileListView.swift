@@ -87,6 +87,7 @@ struct ProfileListView: View {
             switch destination {
             case "snippets": SnippetListView()
             case "settings": TerminalSettingsView()
+            case "keyboard": LayoutEditorView()
             default: EmptyView()
             }
         }
@@ -96,6 +97,9 @@ struct ProfileListView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 HStack(spacing: 16) {
+                    NavigationLink(value: "keyboard") {
+                        Image(systemName: "keyboard")
+                    }
                     NavigationLink(value: "snippets") {
                         Image(systemName: "text.badge.star")
                     }

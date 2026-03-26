@@ -7,17 +7,31 @@
 
 import SwiftUI
 import SwiftData
+@preconcurrency import SwiftTerm
 
 struct SessionContainerView: View {
     @Environment(SessionManager.self) private var sessionManager
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @Query private var snippets: [Snippet]
     @Query(sort: \ConnectionProfile.updatedAt, order: .reverse) private var profiles: [ConnectionProfile]
+    @Query private var snippets: [Snippet]
+    @Query private var layouts: [KeyboardLayout]
+    @AppStorage("showSnippetBar") private var showSnippetBar = true
 
     @State private var showProfilePicker = false
     @State private var passwordForProfile: ConnectionProfile?
     @State private var password: String = ""
+
+    /// セルサイズ（正方形）= 画面幅 / (列数 + 1)
+    private var cellSize: CGFloat {
+        let gridCols = layouts.first?.columns ?? 4
+        return UIScreen.main.bounds.width / CGFloat(gridCols + 1)
+    }
+
+    private var keyboardAreaHeight: CGFloat {
+        let gridRows = layouts.first?.rows ?? 2
+        return cellSize * CGFloat(gridRows)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -30,15 +44,9 @@ struct SessionContainerView: View {
                 // ZStack で全セッションを常に保持
                 ZStack {
                     ForEach(sessionManager.sessions) { session in
-                        VStack(spacing: 0) {
-                            SwiftTerminalView(viewModel: session.viewModel)
-
-                            if !snippets.isEmpty {
-                                snippetBar(for: session)
-                            }
-                        }
-                        .opacity(session.id == sessionManager.activeSessionId ? 1 : 0)
-                        .allowsHitTesting(session.id == sessionManager.activeSessionId)
+                        SwiftTerminalView(viewModel: session.viewModel)
+                            .opacity(session.id == sessionManager.activeSessionId ? 1 : 0)
+                            .allowsHitTesting(session.id == sessionManager.activeSessionId)
                     }
                 }
                 .gesture(
@@ -69,6 +77,73 @@ struct SessionContainerView: View {
                         sessionManager.activeSession?.viewModel.focusTerminal()
                     }
                 }
+
+                if let session = sessionManager.activeSession {
+                    // スニペットバー
+                    if showSnippetBar && !snippets.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(snippets) { snippet in
+                                    Button {
+                                        let data = Data(snippet.commandToSend.utf8)
+                                        session.viewModel.sendToShell(data)
+                                    } label: {
+                                        Text(snippet.label)
+                                            .font(.system(.caption, design: .monospaced))
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 6)
+                                            .background(Color(.systemGray5))
+                                            .cornerRadius(6)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                        }
+                        .background(Color(.systemGray6))
+                    }
+
+                    // キーボード拡張エリア + 戻るボタン
+                    GeometryReader { geo in
+                        let gridCols = layouts.first?.columns ?? 4
+                        let totalUnits = CGFloat(gridCols) + 1 // +1 for back button
+                        let unitWidth = geo.size.width / totalUnits
+                        let backWidth = unitWidth
+
+                        HStack(spacing: 0) {
+                            Button {
+                                dismiss()
+                            } label: {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 14))
+                                    .frame(width: backWidth - 6, height: geo.size.height - 6)
+                                    .background(Color(.systemGray5))
+                                    .cornerRadius(6)
+                            }
+                            .buttonStyle(.plain)
+                            .frame(width: backWidth)
+
+                            KeyboardExtensionView(
+                                sendToShell: { data in
+                                    session.viewModel.sendToShell(data)
+                                },
+                                toggleKeyboard: {
+                                    if let tv = session.viewModel.terminalView {
+                                        if tv.isFirstResponder {
+                                            tv.resignFirstResponder()
+                                        } else {
+                                            tv.becomeFirstResponder()
+                                        }
+                                    }
+                                }
+                            )
+                            .frame(width: geo.size.width - backWidth)
+                        }
+                    }
+                    .frame(height: keyboardAreaHeight)
+                    .background(Color(.systemGray6))
+                }
             } else {
                 ContentUnavailableView(
                     "セッションがありません",
@@ -78,19 +153,7 @@ struct SessionContainerView: View {
                 .onAppear { dismiss() }
             }
         }
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                        Text("プロファイル")
-                    }
-                }
-            }
-        }
+        .navigationBarHidden(true)
         .sheet(isPresented: $showProfilePicker) {
             NavigationStack {
                 ProfilePickerView(profiles: profiles) { profile in
@@ -131,30 +194,6 @@ struct SessionContainerView: View {
         }
     }
 
-    @ViewBuilder
-    private func snippetBar(for session: Session) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(snippets) { snippet in
-                    Button {
-                        let data = Data(snippet.commandToSend.utf8)
-                        session.viewModel.sendToShell(data)
-                    } label: {
-                        Text(snippet.label)
-                            .font(.system(.caption, design: .monospaced))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color(.systemGray5))
-                            .cornerRadius(6)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-        }
-        .background(Color(.systemGray6))
-    }
 }
 
 // MARK: - Profile Picker (Sheet)

@@ -11,12 +11,17 @@ import SwiftData
 struct SnippetListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var snippets: [Snippet]
+    @AppStorage("showSnippetBar") private var showSnippetBar = true
 
     @State private var selectedSnippet: Snippet?
     @State private var showingAddSheet = false
 
     var body: some View {
-        Group {
+        List {
+            Section {
+                Toggle("スニペットバーを表示", isOn: $showSnippetBar)
+            }
+
             if snippets.isEmpty {
                 ContentUnavailableView(
                     "スニペットがありません",
@@ -24,7 +29,7 @@ struct SnippetListView: View {
                     description: Text("よく使うコマンドをスニペットとして登録すると、ワンタップで送信できます。")
                 )
             } else {
-                List {
+                Section("登録済みスニペット") {
                     ForEach(snippets) { snippet in
                         SnippetRow(snippet: snippet)
                             .contentShape(Rectangle())
