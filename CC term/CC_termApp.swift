@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct CC_termApp: App {
@@ -16,5 +17,6 @@ struct CC_termApp: App {
             ContentView()
                 .environment(sshService)
         }
+        .modelContainer(for: [ConnectionProfile.self, Snippet.self])
     }
 }

@@ -10,12 +10,7 @@ import SwiftUI
 struct ContentView: View {
     var body: some View {
         NavigationStack {
-            ConnectionFormView()
+            ProfileListView()
         }
     }
-}
-
-#Preview {
-    ContentView()
-        .environment(SSHService())
 }

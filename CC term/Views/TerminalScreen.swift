@@ -6,25 +6,54 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct TerminalScreen: View {
     @Bindable var viewModel: TerminalViewModel
+    @Query private var snippets: [Snippet]
 
     var body: some View {
-        SwiftTerminalView(viewModel: viewModel)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text(viewModel.title)
-                        .font(.system(.headline, design: .monospaced))
-                        .lineLimit(1)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("切断") {
-                        Task { await viewModel.disconnect() }
+        VStack(spacing: 0) {
+            SwiftTerminalView(viewModel: viewModel)
+
+            // スニペットバー（キーボード拡張エリアの上）
+            if !snippets.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(snippets) { snippet in
+                            Button {
+                                let data = Data(snippet.commandToSend.utf8)
+                                viewModel.sendToShell(data)
+                            } label: {
+                                Text(snippet.label)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color(.systemGray5))
+                                    .cornerRadius(6)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
-                    .foregroundStyle(.red)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
                 }
+                .background(Color(.systemGray6))
             }
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text(viewModel.title)
+                    .font(.system(.headline, design: .monospaced))
+                    .lineLimit(1)
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("切断") {
+                    Task { await viewModel.disconnect() }
+                }
+                .foregroundStyle(.red)
+            }
+        }
     }
 }

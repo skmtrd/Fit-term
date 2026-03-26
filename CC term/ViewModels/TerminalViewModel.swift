@@ -17,6 +17,7 @@ final class TerminalViewModel {
 
     private var shellTask: Task<Void, Never>?
     private var shellStarted = false
+    private var initialCommand: String = ""
 
     var isConnected: Bool {
         if case .connected = sshService.connectionState { return true }
@@ -32,8 +33,9 @@ final class TerminalViewModel {
         self.sshService = sshService
     }
 
-    func connect(config: SSHConnectionConfig) async {
+    func connect(config: SSHConnectionConfig, initialCommand: String = "") async {
         title = config.displayName
+        self.initialCommand = initialCommand
         do {
             try await sshService.connect(config: config)
         } catch {
@@ -60,6 +62,7 @@ final class TerminalViewModel {
     private func startShell(cols: Int, rows: Int) {
         guard let tv = terminalView else { return }
 
+        let cmdToRun = initialCommand
         shellTask = Task { [weak self] in
             guard let self else { return }
             do {
@@ -71,6 +74,19 @@ final class TerminalViewModel {
                 }
             } catch {
                 // Shell ended with error
+            }
+        }
+
+        // 初期コマンドをシェル起動後に1行ずつ送信
+        if !cmdToRun.isEmpty {
+            let lines = cmdToRun.components(separatedBy: .newlines).filter { !$0.isEmpty }
+            Task {
+                try? await Task.sleep(for: .milliseconds(500))
+                for line in lines {
+                    let cmd = line + "\n"
+                    sshService.sendToShell(Data(cmd.utf8))
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
             }
         }
     }

@@ -1,5 +1,5 @@
 //
-//  ConnectionFormView.swift
+//  ProfileFormView.swift
 //  CC term
 //
 //  Created by 坂本蒼哉 on 2026/03/26.
@@ -7,28 +7,44 @@
 
 import SwiftUI
 
-struct ConnectionFormView: View {
-    @Environment(SSHService.self) private var sshService
+enum ProfileFormMode {
+    case new
+    case edit(ConnectionProfile)
+}
 
-    @State private var host: String = "192.168.0.78"
+struct ProfileFormView: View {
+    let mode: ProfileFormMode
+    let onSave: (ConnectionProfile) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var nickname: String = ""
+    @State private var host: String = ""
     @State private var port: String = "22"
-    @State private var username: String = "skmtrd"
+    @State private var username: String = ""
     @State private var password: String = ""
-    @State private var isConnecting = false
-    @State private var navigateToTerminal = false
-    @State private var viewModel: TerminalViewModel?
-    @State private var errorMessage: String?
+    @State private var savePassword: Bool = true
+    @State private var initialCommand: String = ""
 
     private var isFormValid: Bool {
         !host.trimmingCharacters(in: .whitespaces).isEmpty
             && !username.trimmingCharacters(in: .whitespaces).isEmpty
-            && !password.isEmpty
             && (Int(port) ?? 0) > 0
             && (Int(port) ?? 0) <= 65535
     }
 
+    private var isEditing: Bool {
+        if case .edit = mode { return true }
+        return false
+    }
+
     var body: some View {
         Form {
+            Section("プロファイル") {
+                TextField("ニックネーム", text: $nickname)
+                    .textInputAutocapitalization(.never)
+            }
+
             Section("サーバー") {
                 TextField("ホスト", text: $host)
                     .textContentType(.URL)
@@ -47,62 +63,77 @@ struct ConnectionFormView: View {
 
                 SecureField("パスワード", text: $password)
                     .textContentType(.password)
-            }
 
-            if let errorMessage {
-                Section {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
-                        .font(.caption)
-                }
+                Toggle("パスワードを保存", isOn: $savePassword)
             }
 
             Section {
-                Button {
-                    connect()
-                } label: {
-                    if isConnecting {
-                        HStack {
-                            ProgressView()
-                            Text("接続中...")
-                        }
-                    } else {
-                        Text("接続")
-                    }
-                }
-                .disabled(!isFormValid || isConnecting)
+                TextEditor(text: $initialCommand)
+                    .font(.system(.body, design: .monospaced))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .frame(minHeight: 80)
+            } header: {
+                Text("初期コマンド")
+            } footer: {
+                Text("接続直後に実行されます。複数行で複数コマンドを指定できます。")
             }
         }
-        .navigationTitle("SSH 接続")
-        .navigationDestination(isPresented: $navigateToTerminal) {
-            if let viewModel {
-                TerminalScreen(viewModel: viewModel)
+        .navigationTitle(isEditing ? "プロファイル編集" : "新規プロファイル")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("キャンセル") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("保存") { save() }
+                    .disabled(!isFormValid)
+            }
+        }
+        .onAppear {
+            if case .edit(let profile) = mode {
+                nickname = profile.nickname
+                host = profile.host
+                port = String(profile.port)
+                username = profile.username
+                initialCommand = profile.initialCommand
+                if let saved = KeychainHelper.load(forKey: profile.keychainPasswordKey) {
+                    password = saved
+                    savePassword = true
+                } else {
+                    savePassword = false
+                }
             }
         }
     }
 
-    private func connect() {
-        let config = SSHConnectionConfig(
-            host: host.trimmingCharacters(in: .whitespaces),
-            port: Int(port) ?? 22,
-            username: username.trimmingCharacters(in: .whitespaces),
-            authMethod: .password(password)
-        )
-
-        let vm = TerminalViewModel(sshService: sshService)
-        self.viewModel = vm
-        isConnecting = true
-        errorMessage = nil
-
-        Task {
-            await vm.connect(config: config)
-            isConnecting = false
-
-            if vm.isConnected {
-                navigateToTerminal = true
-            } else {
-                errorMessage = sshService.lastError ?? "接続に失敗しました。"
-            }
+    private func save() {
+        let profile: ConnectionProfile
+        if case .edit(let existing) = mode {
+            existing.nickname = nickname
+            existing.host = host.trimmingCharacters(in: .whitespaces)
+            existing.port = Int(port) ?? 22
+            existing.username = username.trimmingCharacters(in: .whitespaces)
+            existing.initialCommand = initialCommand
+            existing.updatedAt = Date()
+            profile = existing
+        } else {
+            profile = ConnectionProfile(
+                nickname: nickname,
+                host: host.trimmingCharacters(in: .whitespaces),
+                port: Int(port) ?? 22,
+                username: username.trimmingCharacters(in: .whitespaces),
+                initialCommand: initialCommand
+            )
         }
+
+        if savePassword && !password.isEmpty {
+            KeychainHelper.save(password: password, forKey: profile.keychainPasswordKey)
+        } else {
+            KeychainHelper.delete(forKey: profile.keychainPasswordKey)
+        }
+
+        onSave(profile)
+        dismiss()
     }
 }
