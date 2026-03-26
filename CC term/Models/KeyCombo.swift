@@ -48,6 +48,7 @@ enum KeyAction: String, CaseIterable, Sendable {
     // UI 操作
     case toggleKeyboard = "KB開閉"
     case closeTab = "タブ閉じる"
+    case newTab = "新規タブ"
 
     /// SSH に送信するバイト列
     var bytes: Data {
@@ -82,6 +83,7 @@ enum KeyAction: String, CaseIterable, Sendable {
         case .tilde:            Data([0x7E])
         case .toggleKeyboard:   Data() // 特殊: バイト送信ではなくキーボード開閉
         case .closeTab:         Data() // 特殊: アクティブタブを閉じる
+        case .newTab:           Data() // 特殊: 新規タブ追加
         }
     }
 
@@ -108,6 +110,7 @@ enum KeyAction: String, CaseIterable, Sendable {
         case .tilde:            "~"
         case .toggleKeyboard:   "⌨"
         case .closeTab:         "✕"
+        case .newTab:           "+"
         default:                rawValue
         }
     }
@@ -126,6 +129,7 @@ enum KeyAction: String, CaseIterable, Sendable {
         case .delete:           "delete.right"
         case .toggleKeyboard:   "keyboard.chevron.compact.down"
         case .closeTab:         "xmark.square"
+        case .newTab:           "plus.square"
         default:                ""
         }
     }
@@ -141,7 +145,7 @@ enum KeyAction: String, CaseIterable, Sendable {
             "Shift 組み合わせ"
         case .pipe, .tilde, .ctrlLeftBracket:
             "記号"
-        case .toggleKeyboard, .closeTab:
+        case .toggleKeyboard, .closeTab, .newTab:
             "UI 操作"
         default:
             "Ctrl 組み合わせ"

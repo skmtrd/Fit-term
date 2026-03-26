@@ -139,6 +139,9 @@ struct SessionContainerView: View {
                                 },
                                 closeTab: {
                                     sessionManager.removeSession(session)
+                                },
+                                newTab: {
+                                    showProfilePicker = true
                                 }
                             )
                             .frame(width: geo.size.width - backWidth)

@@ -12,6 +12,7 @@ struct KeyboardExtensionView: View {
     let sendToShell: (Data) -> Void
     let toggleKeyboard: () -> Void
     let closeTab: () -> Void
+    let newTab: () -> Void
     @Query private var layouts: [KeyboardLayout]
     @Query private var snippets: [Snippet]
 
@@ -61,6 +62,10 @@ struct KeyboardExtensionView: View {
             }
             if button.keyActionRawValue == KeyAction.closeTab.rawValue {
                 closeTab()
+                return
+            }
+            if button.keyActionRawValue == KeyAction.newTab.rawValue {
+                newTab()
                 return
             }
             guard let bytes = button.keyBytes else { return }
