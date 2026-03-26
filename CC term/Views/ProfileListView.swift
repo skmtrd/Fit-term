@@ -55,9 +55,18 @@ struct ProfileListView: View {
                     Button {
                         startConnection(profile: profile)
                     } label: {
-                        ProfileRow(profile: profile)
+                        HStack {
+                            ProfileRow(profile: profile)
+                            Spacer()
+                            if connectingProfile?.id == profile.id {
+                                ProgressView()
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
-                    .tint(.primary)
+                    .buttonStyle(ImmediateFeedbackButtonStyle())
+                    .disabled(connectingProfile?.id == profile.id)
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
                                 deleteProfile(profile)
@@ -219,5 +228,21 @@ private struct ProfileRow: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Immediate Feedback Button Style
+
+private struct ImmediateFeedbackButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(configuration.isPressed ? Color(.systemGray4) : Color.clear)
+            .cornerRadius(8)
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .onChange(of: configuration.isPressed) {
+                if configuration.isPressed {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                }
+            }
     }
 }

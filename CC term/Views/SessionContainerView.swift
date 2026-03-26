@@ -136,6 +136,9 @@ struct SessionContainerView: View {
                                             tv.becomeFirstResponder()
                                         }
                                     }
+                                },
+                                closeTab: {
+                                    sessionManager.removeSession(session)
                                 }
                             )
                             .frame(width: geo.size.width - backWidth)
