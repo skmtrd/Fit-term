@@ -84,7 +84,19 @@ final class TerminalViewModel {
                 try await sshService.startShell(cols: cols, rows: rows) { [weak self] data in
                     let bytes = [UInt8](data)
                     DispatchQueue.main.async {
-                        self?.terminalView?.feed(byteArray: ArraySlice(bytes))
+                        guard let self, let tv = self.terminalView else { return }
+                        let atBottom = tv.contentOffset.y >= tv.contentSize.height - tv.bounds.height - 20
+                        let savedOffset = tv.contentOffset
+                        tv.feed(byteArray: ArraySlice(bytes))
+                        if !atBottom {
+                            // SwiftTerm の内部レイアウト完了後にスクロール位置を復元
+                            tv.layoutIfNeeded()
+                            tv.setContentOffset(savedOffset, animated: false)
+                            // さらに次のランループでも復元（SwiftTerm が非同期でスクロールする場合の対策）
+                            DispatchQueue.main.async {
+                                tv.setContentOffset(savedOffset, animated: false)
+                            }
+                        }
                     }
                 }
             } catch {
@@ -117,8 +129,18 @@ final class TerminalViewModel {
         await sshService.disconnect()
     }
 
+    /// ユーザーが上にスクロールしているか
+    var isScrolledUp = false
+
     func sendToShell(_ data: Data) {
         sshService.sendToShell(data)
+    }
+
+    func scrollToBottom() {
+        guard let tv = terminalView else { return }
+        let bottomOffset = CGPoint(x: 0, y: max(0, tv.contentSize.height - tv.bounds.height))
+        tv.setContentOffset(bottomOffset, animated: true)
+        isScrolledUp = false
     }
 
     func focusTerminal() {

@@ -18,6 +18,7 @@ final class ConnectionProfile {
     var initialCommand: String = ""
     var createdAt: Date
     var updatedAt: Date
+    var folder: ProfileFolder?
 
     /// パスワードは Keychain に保存するため、このキーで紐づける
     var keychainPasswordKey: String {

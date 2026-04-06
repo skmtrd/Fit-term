@@ -22,7 +22,7 @@ struct CC_termApp: App {
             ContentView()
                 .environment(sessionManager)
         }
-        .modelContainer(for: [ConnectionProfile.self, Snippet.self, TerminalSettings.self, KeyboardLayout.self, KeyboardButton.self])
+        .modelContainer(for: [ConnectionProfile.self, ProfileFolder.self, Snippet.self, TerminalSettings.self, KeyboardLayout.self, KeyboardButton.self])
     }
 
     private static func registerBundledFonts() {

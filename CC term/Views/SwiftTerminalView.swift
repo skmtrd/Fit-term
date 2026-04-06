@@ -62,7 +62,9 @@ struct SwiftTerminalView: UIViewRepresentable {
         }
 
         func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
-        func scrolled(source: TerminalView, position: Double) {}
+        func scrolled(source: TerminalView, position: Double) {
+            viewModel.isScrolledUp = position < 1.0
+        }
         func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {}
         func clipboardCopy(source: TerminalView, content: Data) {}
         func rangeChanged(source: TerminalView, startY: Int, endY: Int) {}

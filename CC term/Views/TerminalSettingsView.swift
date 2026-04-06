@@ -10,7 +10,9 @@ import SwiftData
 
 struct TerminalSettingsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(SessionManager.self) private var sessionManager
     @Query private var settingsList: [TerminalSettings]
+    @AppStorage("backgroundKeepAlive") private var backgroundKeepAlive = false
 
     private var settings: TerminalSettings {
         if let existing = settingsList.first {
@@ -126,6 +128,34 @@ struct TerminalSettingsView: View {
                     .background(settings.backgroundColor)
                     .cornerRadius(8)
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+            }
+
+            // バックグラウンド維持
+            Section {
+                Toggle("バックグラウンドでセッション維持", isOn: $backgroundKeepAlive)
+                    .onChange(of: backgroundKeepAlive) {
+                        if backgroundKeepAlive {
+                            let bgLoc = sessionManager.backgroundLocation
+                            if bgLoc.needsPermission {
+                                bgLoc.requestPermission()
+                            }
+                            if bgLoc.isAuthorized && sessionManager.hasActiveSessions {
+                                bgLoc.start()
+                            }
+                        } else {
+                            sessionManager.backgroundLocation.stop()
+                        }
+                    }
+
+                if backgroundKeepAlive && !sessionManager.backgroundLocation.isAuthorized && !sessionManager.backgroundLocation.needsPermission {
+                    Text("位置情報の「常に許可」が必要です。設定アプリから変更してください。")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            } header: {
+                Text("バックグラウンド")
+            } footer: {
+                Text("ONにすると、アプリがバックグラウンドでもSSHセッションを維持します。位置情報を利用しますが、GPS精度は最低のためバッテリーへの影響は軽微です。")
             }
         }
         .navigationTitle("ターミナル表示設定")

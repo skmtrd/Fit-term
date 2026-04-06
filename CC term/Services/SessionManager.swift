@@ -11,6 +11,7 @@ import Foundation
 final class SessionManager {
     private(set) var sessions: [Session] = []
     var activeSessionId: UUID?
+    let backgroundLocation = BackgroundLocationManager()
 
     var activeSession: Session? {
         guard let id = activeSessionId else { return sessions.first }
@@ -21,6 +22,12 @@ final class SessionManager {
         !sessions.isEmpty
     }
 
+    /// バックグラウンド維持が有効で、位置情報が許可されているか
+    var isBackgroundKeepAliveEnabled: Bool {
+        backgroundLocation.isRunning
+    }
+
+    @discardableResult
     func addSession(profile: ConnectionProfile, password: String) -> Session {
         let session = Session(
             profileName: profile.displayName,
@@ -34,6 +41,9 @@ final class SessionManager {
             await session.viewModel.connect(config: config, initialCommand: profile.initialCommand)
         }
 
+        // セッションが追加されたらバックグラウンド維持を開始
+        updateBackgroundLocation()
+
         return session
     }
 
@@ -43,10 +53,12 @@ final class SessionManager {
         }
         sessions.removeAll { $0.id == session.id }
 
-        // アクティブセッションが削除された場合、最後のセッションに切り替え
         if activeSessionId == session.id {
             activeSessionId = sessions.last?.id
         }
+
+        // セッションが0になったらバックグラウンド維持を停止
+        updateBackgroundLocation()
     }
 
     func switchTo(_ session: Session) {
@@ -65,5 +77,14 @@ final class SessionManager {
               let currentIndex = sessions.firstIndex(where: { $0.id == currentId }),
               currentIndex > 0 else { return }
         activeSessionId = sessions[currentIndex - 1].id
+    }
+
+    private func updateBackgroundLocation() {
+        let enabled = UserDefaults.standard.bool(forKey: "backgroundKeepAlive")
+        if enabled && !sessions.isEmpty {
+            backgroundLocation.start()
+        } else {
+            backgroundLocation.stop()
+        }
     }
 }

@@ -15,9 +15,7 @@ struct LayoutEditorView: View {
     @State private var editingButton: KeyboardButton?
     @State private var addingAt: (row: Int, col: Int)?
 
-    private var editorColumns: Int {
-        layouts.first?.columns ?? 4
-    }
+    private var editorColumns: Int { 8 }
 
     private var editorRows: Int {
         layouts.first?.rows ?? 2
@@ -36,14 +34,6 @@ struct LayoutEditorView: View {
         VStack(spacing: 16) {
             Section {
                 HStack {
-                    Text("列数: \(layout.columns)")
-                    Stepper("", value: Binding(
-                        get: { layout.columns },
-                        set: { layout.columns = $0 }
-                    ), in: 2...8)
-
-                    Spacer()
-
                     Text("段数: \(layout.rows)")
                     Stepper("", value: Binding(
                         get: { layout.rows },
@@ -52,6 +42,7 @@ struct LayoutEditorView: View {
                 }
                 .padding(.horizontal)
             }
+            .onAppear { layout.columns = 8 }
 
             Text("タップで編集 / ドラッグで移動")
                 .font(.caption)
@@ -192,7 +183,7 @@ struct LayoutEditorView: View {
         layout.buttons.removeAll()
 
         layout.rows = 2
-        layout.columns = 4
+        layout.columns = 8
 
         let defaults: [(Int, Int, KeyAction)] = [
             (0, 0, .escape),

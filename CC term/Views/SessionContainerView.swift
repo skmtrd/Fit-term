@@ -22,7 +22,7 @@ struct SessionContainerView: View {
     @State private var passwordForProfile: ConnectionProfile?
     @State private var password: String = ""
 
-    private var gridCols: Int { layouts.first?.columns ?? 4 }
+    private var gridCols: Int { 8 }
     private var gridRows: Int { layouts.first?.rows ?? 2 }
 
     /// キーボードエリアの縦横比（戻るボタン1列分 + グリッド列数 : 行数）

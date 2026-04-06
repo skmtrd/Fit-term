@@ -14,11 +14,11 @@ import SwiftUI
 @Model
 final class KeyboardLayout {
     var rows: Int = 2
-    var columns: Int = 4
+    var columns: Int = 8
     @Relationship(deleteRule: .cascade, inverse: \KeyboardButton.layout)
     var buttons: [KeyboardButton] = []
 
-    init(rows: Int = 2, columns: Int = 4) {
+    init(rows: Int = 2, columns: Int = 8) {
         self.rows = rows
         self.columns = columns
     }
