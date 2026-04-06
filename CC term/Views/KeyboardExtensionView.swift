@@ -15,6 +15,7 @@ struct KeyboardExtensionView: View {
     let newTab: () -> Void
     let prevTab: () -> Void
     let nextTab: () -> Void
+    let attachImage: () -> Void
     @Query private var layouts: [KeyboardLayout]
     @Query private var snippets: [Snippet]
 
@@ -73,6 +74,10 @@ struct KeyboardExtensionView: View {
             }
             if button.keyActionRawValue == KeyAction.nextTab.rawValue {
                 nextTab()
+                return
+            }
+            if button.keyActionRawValue == KeyAction.attachImage.rawValue {
+                attachImage()
                 return
             }
             guard let bytes = button.keyBytes else { return }

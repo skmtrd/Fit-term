@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import PhotosUI
 @preconcurrency import SwiftTerm
 
 struct SessionContainerView: View {
@@ -21,6 +22,9 @@ struct SessionContainerView: View {
     @State private var showProfilePicker = false
     @State private var passwordForProfile: ConnectionProfile?
     @State private var password: String = ""
+    @State private var showPhotoPicker = false
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var isUploading = false
 
     private var gridCols: Int { 8 }
     private var gridRows: Int { layouts.first?.rows ?? 2 }
@@ -144,6 +148,9 @@ struct SessionContainerView: View {
                                 },
                                 nextTab: {
                                     sessionManager.switchToNext()
+                                },
+                                attachImage: {
+                                    showPhotoPicker = true
                                 }
                             )
                             .frame(width: geo.size.width - backWidth)
@@ -162,6 +169,29 @@ struct SessionContainerView: View {
             }
         }
         .navigationBarHidden(true)
+        .photosPicker(isPresented: $showPhotoPicker, selection: $selectedPhoto, matching: .images)
+        .onChange(of: selectedPhoto) {
+            guard let item = selectedPhoto else { return }
+            selectedPhoto = nil
+            Task {
+                await uploadSelectedPhoto(item: item)
+            }
+        }
+        .overlay {
+            if isUploading {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .overlay {
+                        VStack(spacing: 12) {
+                            ProgressView()
+                                .tint(.white)
+                            Text("画像をアップロード中...")
+                                .font(.caption)
+                                .foregroundStyle(.white)
+                        }
+                    }
+            }
+        }
         .sheet(isPresented: $showProfilePicker) {
             NavigationStack {
                 ProfilePickerView(profiles: profiles) { profile in
@@ -202,6 +232,26 @@ struct SessionContainerView: View {
         }
     }
 
+    private func uploadSelectedPhoto(item: PhotosPickerItem) async {
+        guard let session = sessionManager.activeSession else { return }
+
+        isUploading = true
+        defer { isUploading = false }
+
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self) else { return }
+
+            let filename = "fit-term-\(UUID().uuidString.prefix(8)).png"
+            let remotePath = "/tmp/\(filename)"
+
+            try await session.sshService.uploadFile(data: data, remotePath: remotePath)
+
+            // パスをターミナルに入力
+            session.viewModel.sendToShell(Data(remotePath.utf8))
+        } catch {
+            // アップロード失敗時は何もしない（エラーはログに出る）
+        }
+    }
 }
 
 // MARK: - Profile Picker (Sheet)

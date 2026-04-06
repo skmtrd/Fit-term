@@ -159,6 +159,27 @@ final class SSHService {
         shellInputContinuation?.yield(.resize(cols: cols, rows: rows))
     }
 
+    // MARK: - File Upload (SFTP)
+
+    func uploadFile(data: Data, remotePath: String) async throws {
+        guard let client else {
+            throw SSHServiceError.notConnected
+        }
+        let sftp = try await client.openSFTP()
+        var attrs = SFTPFileAttributes()
+        attrs.permissions = 0o644
+        let file = try await sftp.openFile(
+            filePath: remotePath,
+            flags: [.create, .truncate, .write],
+            attributes: attrs
+        )
+        var buffer = ByteBuffer()
+        buffer.writeBytes(data)
+        try await file.write(buffer)
+        try await file.close()
+        try await sftp.close()
+    }
+
     // MARK: - Keep Alive
 
     private func startKeepAlive() {
