@@ -138,6 +138,12 @@ struct SessionContainerView: View {
                                 },
                                 newTab: {
                                     showProfilePicker = true
+                                },
+                                prevTab: {
+                                    sessionManager.switchToPrevious()
+                                },
+                                nextTab: {
+                                    sessionManager.switchToNext()
                                 }
                             )
                             .frame(width: geo.size.width - backWidth)

@@ -95,6 +95,8 @@ enum KeyAction: String, CaseIterable, Sendable {
     case closeTab = "タブ閉じる"
     case newTab = "新規タブ"
     case paste = "ペースト"
+    case prevTab = "前のタブ"
+    case nextTab = "次のタブ"
 
     /// SSH に送信するバイト列
     var bytes: Data {
@@ -177,6 +179,8 @@ enum KeyAction: String, CaseIterable, Sendable {
         case .closeTab:         Data()
         case .newTab:           Data()
         case .paste:            Data()
+        case .prevTab:          Data()
+        case .nextTab:          Data()
         }
     }
 
@@ -222,6 +226,8 @@ enum KeyAction: String, CaseIterable, Sendable {
         case .closeTab:         "✕"
         case .newTab:           "+"
         case .paste:            "Paste"
+        case .prevTab:          "◀"
+        case .nextTab:          "▶"
         default:                rawValue
         }
     }
@@ -272,6 +278,8 @@ enum KeyAction: String, CaseIterable, Sendable {
         case .closeTab:         "xmark.square"
         case .newTab:           "plus.square"
         case .paste:            "doc.on.clipboard"
+        case .prevTab:          "arrow.left.square"
+        case .nextTab:          "arrow.right.square"
         default:                ""
         }
     }
@@ -298,7 +306,7 @@ enum KeyAction: String, CaseIterable, Sendable {
         case .ctrlLeftBracket, .pipe, .tilde, .slash, .hyphen, .underscore,
              .dollar, .greaterThan, .lessThan, .ampersand:
             "記号"
-        case .toggleKeyboard, .closeTab, .newTab, .paste:
+        case .toggleKeyboard, .closeTab, .newTab, .paste, .prevTab, .nextTab:
             "UI 操作"
         }
     }

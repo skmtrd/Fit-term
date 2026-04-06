@@ -13,6 +13,8 @@ struct KeyboardExtensionView: View {
     let toggleKeyboard: () -> Void
     let closeTab: () -> Void
     let newTab: () -> Void
+    let prevTab: () -> Void
+    let nextTab: () -> Void
     @Query private var layouts: [KeyboardLayout]
     @Query private var snippets: [Snippet]
 
@@ -63,6 +65,14 @@ struct KeyboardExtensionView: View {
                 if let text = UIPasteboard.general.string {
                     sendToShell(Data(text.utf8))
                 }
+                return
+            }
+            if button.keyActionRawValue == KeyAction.prevTab.rawValue {
+                prevTab()
+                return
+            }
+            if button.keyActionRawValue == KeyAction.nextTab.rawValue {
+                nextTab()
                 return
             }
             guard let bytes = button.keyBytes else { return }

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 @Observable
 final class SessionManager {
@@ -77,6 +78,10 @@ final class SessionManager {
               let currentIndex = sessions.firstIndex(where: { $0.id == currentId }),
               currentIndex > 0 else { return }
         activeSessionId = sessions[currentIndex - 1].id
+    }
+
+    func moveSession(from source: IndexSet, to destination: Int) {
+        sessions.move(fromOffsets: source, toOffset: destination)
     }
 
     private func updateBackgroundLocation() {
