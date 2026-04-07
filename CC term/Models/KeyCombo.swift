@@ -98,6 +98,7 @@ enum KeyAction: String, CaseIterable, Sendable {
     case prevTab = "前のタブ"
     case nextTab = "次のタブ"
     case attachImage = "画像添付"
+    case captureVoice = "音声入力"
 
     /// SSH に送信するバイト列
     var bytes: Data {
@@ -183,6 +184,7 @@ enum KeyAction: String, CaseIterable, Sendable {
         case .prevTab:          Data()
         case .nextTab:          Data()
         case .attachImage:      Data()
+        case .captureVoice:     Data()
         }
     }
 
@@ -231,6 +233,7 @@ enum KeyAction: String, CaseIterable, Sendable {
         case .prevTab:          "◀"
         case .nextTab:          "▶"
         case .attachImage:      "📷"
+        case .captureVoice:     "🎤"
         default:                rawValue
         }
     }
@@ -284,6 +287,7 @@ enum KeyAction: String, CaseIterable, Sendable {
         case .prevTab:          "arrow.left.square"
         case .nextTab:          "arrow.right.square"
         case .attachImage:      "photo"
+        case .captureVoice:     "mic.fill"
         default:                ""
         }
     }
@@ -310,7 +314,7 @@ enum KeyAction: String, CaseIterable, Sendable {
         case .ctrlLeftBracket, .pipe, .tilde, .slash, .hyphen, .underscore,
              .dollar, .greaterThan, .lessThan, .ampersand:
             "記号"
-        case .toggleKeyboard, .closeTab, .newTab, .paste, .prevTab, .nextTab, .attachImage:
+        case .toggleKeyboard, .closeTab, .newTab, .paste, .prevTab, .nextTab, .attachImage, .captureVoice:
             "UI 操作"
         }
     }

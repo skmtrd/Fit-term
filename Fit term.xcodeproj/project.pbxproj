@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FD44E16E2F8547C400651A9E /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = FD44E16D2F8547C400651A9E /* WhisperKit */; };
 		FDF3B3072F74D235002E1A58 /* Citadel in Frameworks */ = {isa = PBXBuildFile; productRef = FDF3B3062F74D235002E1A58 /* Citadel */; };
 		FDF3B30E2F74D873002E1A58 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = FDF3B30D2F74D873002E1A58 /* SwiftTerm */; };
 /* End PBXBuildFile section */
@@ -29,6 +30,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FD44E16E2F8547C400651A9E /* WhisperKit in Frameworks */,
 				FDF3B30E2F74D873002E1A58 /* SwiftTerm in Frameworks */,
 				FDF3B3072F74D235002E1A58 /* Citadel in Frameworks */,
 			);
@@ -76,6 +78,7 @@
 			packageProductDependencies = (
 				FDF3B3062F74D235002E1A58 /* Citadel */,
 				FDF3B30D2F74D873002E1A58 /* SwiftTerm */,
+				FD44E16D2F8547C400651A9E /* WhisperKit */,
 			);
 			productName = "CC term";
 			productReference = FDF3B2E92F74CE37002E1A58 /* Fit term.app */;
@@ -108,6 +111,7 @@
 			packageReferences = (
 				FDF3B3052F74D235002E1A58 /* XCRemoteSwiftPackageReference "Citadel" */,
 				FDF3B30C2F74D873002E1A58 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+				FD44E16C2F8547C400651A9E /* XCRemoteSwiftPackageReference "WhisperKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = FDF3B2EA2F74CE37002E1A58 /* Products */;
@@ -272,6 +276,8 @@
 				INFOPLIST_FILE = "Fit-term-Info.plist";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "バックグラウンドでSSHセッションを維持するために位置情報を使用します。GPS精度は最低に設定されており、バッテリーへの影響は軽微です。";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "バックグラウンドでSSHセッションを維持するために位置情報を使用します。";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "音声入力で文字起こしするためにマイクを使用します。";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "音声を文字に変換するために使用します。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = location;
@@ -308,6 +314,8 @@
 				INFOPLIST_FILE = "Fit-term-Info.plist";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "バックグラウンドでSSHセッションを維持するために位置情報を使用します。GPS精度は最低に設定されており、バッテリーへの影響は軽微です。";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "バックグラウンドでSSHセッションを維持するために位置情報を使用します。";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "音声入力で文字起こしするためにマイクを使用します。";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "音声を文字に変換するために使用します。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = location;
@@ -355,6 +363,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		FD44E16C2F8547C400651A9E /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/argmaxinc/WhisperKit.git";
+			requirement = {
+				kind = exactVersion;
+				version = 0.9.4;
+			};
+		};
 		FDF3B3052F74D235002E1A58 /* XCRemoteSwiftPackageReference "Citadel" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/orlandos-nl/Citadel.git";
@@ -374,6 +390,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		FD44E16D2F8547C400651A9E /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FD44E16C2F8547C400651A9E /* XCRemoteSwiftPackageReference "WhisperKit" */;
+			productName = WhisperKit;
+		};
 		FDF3B3062F74D235002E1A58 /* Citadel */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = FDF3B3052F74D235002E1A58 /* XCRemoteSwiftPackageReference "Citadel" */;

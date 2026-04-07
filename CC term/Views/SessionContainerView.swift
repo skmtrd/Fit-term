@@ -25,6 +25,9 @@ struct SessionContainerView: View {
     @State private var showPhotoPicker = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isUploading = false
+    @State private var speechService = SpeechService()
+    @State private var showTranscriptionConfirm = false
+    @State private var transcribedText = ""
 
     private var gridCols: Int { 8 }
     private var gridRows: Int { layouts.first?.rows ?? 2 }
@@ -151,6 +154,9 @@ struct SessionContainerView: View {
                                 },
                                 attachImage: {
                                     showPhotoPicker = true
+                                },
+                                captureVoice: {
+                                    toggleVoiceRecording(for: session)
                                 }
                             )
                             .frame(width: geo.size.width - backWidth)
@@ -191,6 +197,73 @@ struct SessionContainerView: View {
                         }
                     }
             }
+            if speechService.isTranscribing {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .overlay {
+                        VStack(spacing: 12) {
+                            ProgressView()
+                                .tint(.white)
+                            Text("文字起こし中...")
+                                .font(.caption)
+                                .foregroundStyle(.white)
+                        }
+                    }
+            }
+            if speechService.isModelDownloading {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .overlay {
+                        VStack(spacing: 12) {
+                            ProgressView()
+                                .tint(.white)
+                            Text("音声認識モデルをダウンロード中...")
+                                .font(.caption)
+                                .foregroundStyle(.white)
+                        }
+                    }
+            }
+            if speechService.isRecording {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        stopVoiceRecording()
+                    }
+                    .overlay {
+                        VStack(spacing: 16) {
+                            Circle()
+                                .fill(.red)
+                                .frame(width: 16, height: 16)
+                                .opacity(0.8)
+
+                            Text("録音中")
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.white)
+
+                            Text("タップして停止")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+                    }
+            }
+        }
+        .sheet(isPresented: $showTranscriptionConfirm) {
+            TranscriptionConfirmView(
+                text: $transcribedText,
+                onSend: { text in
+                    if let session = sessionManager.activeSession {
+                        session.viewModel.sendToShell(Data(text.utf8))
+                    }
+                    showTranscriptionConfirm = false
+                    transcribedText = ""
+                },
+                onCancel: {
+                    showTranscriptionConfirm = false
+                    transcribedText = ""
+                }
+            )
+            .presentationDetents([.medium])
         }
         .sheet(isPresented: $showProfilePicker) {
             NavigationStack {
@@ -249,7 +322,35 @@ struct SessionContainerView: View {
             // パスをターミナルに入力
             session.viewModel.sendToShell(Data(remotePath.utf8))
         } catch {
-            // アップロード失敗時は何もしない（エラーはログに出る）
+            // アップロード失敗時は何もしない
+        }
+    }
+
+    private func toggleVoiceRecording(for session: Session) {
+        if speechService.isRecording {
+            stopVoiceRecording()
+        } else {
+            Task {
+                do {
+                    try await speechService.ensureModelLoaded()
+                    try await speechService.startRecording()
+                } catch {
+                    // エラー時は何もしない
+                }
+            }
+        }
+    }
+
+    private func stopVoiceRecording() {
+        Task {
+            do {
+                let text = try await speechService.stopRecordingAndTranscribe()
+                if !text.isEmpty, let session = sessionManager.activeSession {
+                    session.viewModel.sendToShell(Data(text.utf8))
+                }
+            } catch {
+                // エラー時は録音を破棄
+            }
         }
     }
 }
