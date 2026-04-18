@@ -31,26 +31,7 @@ struct ProfileListView: View {
 
     var body: some View {
         List {
-            // アクティブセッション
-            if sessionManager.hasActiveSessions {
-                Section {
-                    Button {
-                        navigateToSessions = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "terminal")
-                                .foregroundStyle(.green)
-                            Text("アクティブセッション (\(sessionManager.sessions.count))")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-            }
-
-            // フォルダ
+// フォルダ
             if !folders.isEmpty {
                 Section("フォルダ") {
                     ForEach(folders) { folder in
@@ -95,14 +76,6 @@ struct ProfileListView: View {
             }
         }
         .navigationTitle("Fit term")
-        .navigationDestination(for: String.self) { destination in
-            switch destination {
-            case "snippets": SnippetListView()
-            case "settings": TerminalSettingsView()
-            case "keyboard": LayoutEditorView()
-            default: EmptyView()
-            }
-        }
         .navigationDestination(for: ProfileFolder.ID.self) { folderId in
             if let folder = folders.first(where: { $0.id == folderId }) {
                 FolderDetailView(folder: folder)
@@ -110,21 +83,9 @@ struct ProfileListView: View {
         }
         .navigationDestination(isPresented: $navigateToSessions) {
             SessionContainerView()
+                .toolbar(.hidden, for: .tabBar)
         }
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                HStack(spacing: 16) {
-                    NavigationLink(value: "keyboard") {
-                        Image(systemName: "keyboard")
-                    }
-                    NavigationLink(value: "snippets") {
-                        Image(systemName: "text.badge.star")
-                    }
-                    NavigationLink(value: "settings") {
-                        Image(systemName: "gearshape")
-                    }
-                }
-            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button {
@@ -506,6 +467,7 @@ struct FolderDetailView: View {
         }
         .navigationDestination(isPresented: $navigateToSessions) {
             SessionContainerView()
+                .toolbar(.hidden, for: .tabBar)
         }
         .alert("接続エラー", isPresented: .init(
             get: { errorMessage != nil },

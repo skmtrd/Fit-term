@@ -25,7 +25,7 @@ struct SessionContainerView: View {
     @State private var showPhotoPicker = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isUploading = false
-    @State private var speechService = SpeechService()
+    private var speechService: SpeechService { sessionManager.speechService }
     @State private var showTranscriptionConfirm = false
     @State private var transcribedText = ""
 

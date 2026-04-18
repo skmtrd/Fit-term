@@ -13,6 +13,7 @@ final class SessionManager {
     private(set) var sessions: [Session] = []
     var activeSessionId: UUID?
     let backgroundLocation = BackgroundLocationManager()
+    let speechService = SpeechService()
 
     var activeSession: Session? {
         guard let id = activeSessionId else { return sessions.first }

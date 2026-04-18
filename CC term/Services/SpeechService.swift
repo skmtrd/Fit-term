@@ -20,6 +20,49 @@ final class SpeechService {
 
     private var whisperKit: WhisperKit?
 
+    static let modelName = "large-v3-v20240930_547MB"
+    static let modelRepo = "argmaxinc/whisperkit-coreml"
+
+    // MARK: - Model Storage
+
+    /// モデル保存先（Documents/WhisperKitModels）
+    /// Library/Caches は iOS にストレージ不足時削除されるため Documents を使用
+    static var modelBaseURL: URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        return docs.appendingPathComponent("WhisperKitModels", isDirectory: true)
+    }
+
+    /// モデルフォルダのフルパス
+    static var modelFolderURL: URL {
+        modelBaseURL
+            .appendingPathComponent(modelRepo, isDirectory: true)
+            .appendingPathComponent("openai_whisper-\(modelName)", isDirectory: true)
+    }
+
+    /// モデルがダウンロード済みか
+    static var isModelDownloaded: Bool {
+        FileManager.default.fileExists(atPath: modelFolderURL.path)
+    }
+
+    /// モデルフォルダのサイズ（MB）
+    static var modelSizeMB: Double? {
+        guard isModelDownloaded else { return nil }
+        let url = modelFolderURL
+        guard let enumerator = FileManager.default.enumerator(
+            at: url,
+            includingPropertiesForKeys: [.totalFileAllocatedSizeKey],
+            options: [.skipsHiddenFiles]
+        ) else { return nil }
+
+        var totalBytes: Int64 = 0
+        for case let fileURL as URL in enumerator {
+            if let size = try? fileURL.resourceValues(forKeys: [.totalFileAllocatedSizeKey]).totalFileAllocatedSize {
+                totalBytes += Int64(size)
+            }
+        }
+        return Double(totalBytes) / 1024.0 / 1024.0
+    }
+
     // MARK: - Model Management
 
     func ensureModelLoaded() async throws {
@@ -28,8 +71,11 @@ final class SpeechService {
         isModelDownloading = true
         defer { isModelDownloading = false }
 
+        // Documents 配下に保存するように downloadBase を指定
         let config = WhisperKitConfig(
-            model: "large-v3-v20240930_547MB",
+            model: Self.modelName,
+            downloadBase: Self.modelBaseURL,
+            modelRepo: Self.modelRepo,
             prewarm: true,
             download: true,
             useBackgroundDownloadSession: false
@@ -45,6 +91,14 @@ final class SpeechService {
         isModelLoaded = false
     }
 
+    /// モデルファイルを削除（次回使用時に再ダウンロード）
+    func deleteModel() async throws {
+        await unloadModel()
+        if FileManager.default.fileExists(atPath: Self.modelFolderURL.path) {
+            try FileManager.default.removeItem(at: Self.modelFolderURL)
+        }
+    }
+
     // MARK: - Recording
 
     func startRecording() async throws {
@@ -58,7 +112,7 @@ final class SpeechService {
         }
 
         try whisperKit.audioProcessor.startRecordingLive(inputDeviceID: nil) { _ in
-            // 音声バッファのコールバック（UI の波形表示等に使える）
+            // 音声バッファのコールバック
         }
 
         isRecording = true
@@ -69,14 +123,11 @@ final class SpeechService {
             throw SpeechError.modelNotLoaded
         }
 
-        // 録音停止
         whisperKit.audioProcessor.stopRecording()
         isRecording = false
 
-        // 音声データを取得
         let audioSamples = whisperKit.audioProcessor.audioSamples
         guard audioSamples.count > Int(WhisperKit.sampleRate) / 2 else {
-            // 0.5秒未満の録音は無視
             return ""
         }
 
@@ -85,8 +136,15 @@ final class SpeechService {
 
         let options = DecodingOptions(
             language: "ja",
+            temperature: 0.0,
+            temperatureFallbackCount: 3,
             usePrefillPrompt: true,
-            wordTimestamps: false
+            usePrefillCache: true,
+            wordTimestamps: false,
+            compressionRatioThreshold: 2.4,
+            logProbThreshold: -1.0,
+            noSpeechThreshold: 0.6,
+            chunkingStrategy: .vad
         )
 
         let results = try await whisperKit.transcribe(
@@ -94,7 +152,7 @@ final class SpeechService {
             decodeOptions: options
         )
 
-        let text = results.map { $0.text }.joined().trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = results.map { $0.text }.joined().trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
         return text
     }
 

@@ -115,7 +115,7 @@ final class TerminalViewModel {
             if !cmdToRun.isEmpty {
                 let lines = cmdToRun.components(separatedBy: .newlines).filter { !$0.isEmpty }
                 for line in lines {
-                    let cmd = line + "\n"
+                    let cmd = line + "\r"
                     sshService.sendToShell(Data(cmd.utf8))
                     try? await Task.sleep(for: .milliseconds(100))
                 }
