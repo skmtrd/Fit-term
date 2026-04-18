@@ -11,8 +11,9 @@ struct SpeechSettingsView: View {
     @Environment(SessionManager.self) private var sessionManager
     @State private var modelSize: Double?
     @State private var showDeleteConfirm = false
-    @State private var isDownloading = false
     @State private var isDeleting = false
+
+    private var isDownloading: Bool { sessionManager.speechService.isModelDownloading }
 
     var body: some View {
         Form {
@@ -28,18 +29,21 @@ struct SpeechSettingsView: View {
                     Text("状態")
                     Spacer()
                     if isDownloading {
-                        HStack(spacing: 4) {
-                            ProgressView().controlSize(.small)
-                            Text("ダウンロード中")
-                                .foregroundStyle(.secondary)
-                        }
+                        Text("\(Int(sessionManager.speechService.modelDownloadProgress * 100))%")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
                     } else if SpeechService.isModelDownloaded {
-                        Label("ダウンロード済み", systemImage: "checkmark.circle.fill")
+                        Text("ダウンロード済み")
                             .foregroundStyle(.green)
                     } else {
-                        Label("未ダウンロード", systemImage: "xmark.circle")
+                        Text("未ダウンロード")
                             .foregroundStyle(.secondary)
                     }
+                }
+
+                if isDownloading {
+                    ProgressView(value: sessionManager.speechService.modelDownloadProgress)
+                        .progressViewStyle(.linear)
                 }
 
                 if let size = modelSize {
@@ -53,15 +57,23 @@ struct SpeechSettingsView: View {
             } header: {
                 Text("音声認識モデル")
             } footer: {
-                Text("モデルは Documents フォルダに保存されます。アプリ削除時のみ一緒に削除されます。")
+                if isDownloading {
+                    Text("ダウンロード中はアプリを開いたままにしてください。バックグラウンドに移動すると中断される可能性があります。")
+                } else {
+                    Text("モデルはアプリ内に保存されます。iCloud バックアップには含まれません。")
+                }
             }
 
-            if !SpeechService.isModelDownloaded && !isDownloading {
+            if !SpeechService.isModelDownloaded {
                 Section {
-                    Button {
-                        Task { await downloadModel() }
-                    } label: {
-                        Label("今すぐダウンロード", systemImage: "arrow.down.circle")
+                    if sessionManager.speechService.isModelDownloading {
+                        Button("キャンセル", role: .destructive) {
+                            sessionManager.speechService.cancelDownload()
+                        }
+                    } else {
+                        Button("今すぐダウンロード") {
+                            Task { await downloadModel() }
+                        }
                     }
                 }
             }
@@ -77,7 +89,7 @@ struct SpeechSettingsView: View {
                                 Text("削除中...")
                             }
                         } else {
-                            Label("モデルを削除", systemImage: "trash")
+                            Text("モデルを削除")
                         }
                     }
                     .disabled(isDeleting)
@@ -103,11 +115,7 @@ struct SpeechSettingsView: View {
     }
 
     private func downloadModel() async {
-        isDownloading = true
-        defer {
-            isDownloading = false
-            updateSize()
-        }
+        defer { updateSize() }
         do {
             try await sessionManager.speechService.ensureModelLoaded()
         } catch {

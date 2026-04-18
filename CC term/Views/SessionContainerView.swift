@@ -211,15 +211,26 @@ struct SessionContainerView: View {
                     }
             }
             if speechService.isModelDownloading {
-                Color.black.opacity(0.4)
+                Color.black.opacity(0.5)
                     .ignoresSafeArea()
                     .overlay {
-                        VStack(spacing: 12) {
-                            ProgressView()
+                        VStack(spacing: 16) {
+                            ProgressView(value: speechService.modelDownloadProgress)
+                                .progressViewStyle(.linear)
                                 .tint(.white)
-                            Text("音声認識モデルをダウンロード中...")
+                                .frame(width: 220)
+                            Text("音声認識モデルをダウンロード中")
                                 .font(.caption)
                                 .foregroundStyle(.white)
+                            Text("\(Int(speechService.modelDownloadProgress * 100))%")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.white)
+                                .monospacedDigit()
+                            Text("アプリを開いたままお待ちください")
+                                .font(.caption2)
+                                .foregroundStyle(.white.opacity(0.7))
+                                .padding(.top, 4)
                         }
                     }
             }
